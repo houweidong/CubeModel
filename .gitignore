@@ -1,0 +1,16 @@
+# IDE files
+.idea
+venv
+
+
+# Compilation related
+**/__pycache__
+*.pyc
+*.c
+*.o
+*.so
+
+
+# my
+log/*
+.mytest.py
