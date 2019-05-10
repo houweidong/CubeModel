@@ -124,7 +124,7 @@ def parse_opts():
     parser.add_argument(
         '-si',
         '--save_interval',
-        default=5,
+        default=10,
         type=int,
         help='Trained models is saved at every this epochs.')
     parser.add_argument(

@@ -123,7 +123,7 @@ def run(opt):
     @trainer.on(Events.EPOCH_COMPLETED)
     def save_checkpoint(engine):
         if engine.state.epoch % opt.save_interval == 0:
-            save_file_path = os.path.join(opt.result_path, 'save_{}.pth'.format(engine.state.epoch))
+            save_file_path = os.path.join(opt.log_dir, 'save_{}.pth'.format(engine.state.epoch))
             states = {
                 'epoch': engine.state.epoch,
                 'arch': opt.model,
