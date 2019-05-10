@@ -195,13 +195,14 @@ class PrTp(NoAttention):
         # Also define attention layer for attribute
         for attr in self.attributes:
             name = attr.name
+            # 10 prototype just for test
             setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (1, 1)))
             setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (1, 1)))
-            setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 10, (1, 1)))
 
             # setattr(self, 'prototype_' + name + '_coe1', nn.AdaptiveAvgPool2d(1))
             setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
-            setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.in_features))
+            setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), 10))
 
     def forward(self, x):
         results = []
@@ -213,11 +214,11 @@ class PrTp(NoAttention):
             cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
 
             # compute prototype coefficient
-            prototype_coe1 = self.relu(getattr(self, 'attention_' + name + '_cv1')(self.global_pool(x)))
-            prototype_coe2 = self.sigmoid(getattr(self, 'attention_' + name + '_cv2')(prototype_coe1))
+            prototype_coe1 = self.relu(getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1)))
+            prototype_coe2 = self.sigmoid(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
 
             # multi prototype with attention map to produce new attention map
-            new_attention = prototype_coe2[..., None, None] * cv3_rl
+            new_attention = (prototype_coe2[..., None, None] * cv3_rl).sum(1, keepdim=True)
             y = new_attention * x
             y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
             y = getattr(self, 'fc_' + name + '_1')(y)

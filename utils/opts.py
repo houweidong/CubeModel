@@ -171,7 +171,7 @@ def parse_opts():
         '--attention',
         default='NoAttention',
         type=str,
-        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super'],
+        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp'],
         help='Whether to add attention mechanism of each attribute'
              'ScOd: second-order pooling'
              'OvFc: all over you face'

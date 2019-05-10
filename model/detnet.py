@@ -266,7 +266,7 @@ def load_pretrained_imagenet_weights(model, state_dict):
                            .format(name))
 
 
-def detnet59(pretrained=False):
+def detnet50(pretrained=False):
     """Constructs a ResNet-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
