@@ -3,7 +3,7 @@ from torchvision.models import vgg
 import torch.nn as nn
 from data.attributes import Attribute
 import torch
-
+from model import detnet
 
 def modify_vgg(model):
     model._features = model.features
@@ -28,6 +28,10 @@ def get_backbone_network(conv, pretrained=True):
 
         # Modify the VGG model to make it align with pretrainmodels' format
         backbone = modify_vgg(backbone)
+    elif conv.startswith('detnet'): # just support detenet59 now
+        detnet_getter = getattr(detnet, conv)
+        backbone = detnet_getter(pretrained=pretrained)
+        feature_map_depth = 1024
     else:
         if pretrained:
             backbone = pretrainedmodels.__dict__[conv](num_classes=1000)
@@ -69,6 +73,7 @@ class Base(nn.Module):
         self.out_features = out_features
         self.attributes = attributes
         self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
 
         for attr in self.attributes:
             name = attr.name
@@ -96,7 +101,8 @@ class NoAttention(Base):
     def __init__(self, attributes, in_features, out_features, norm_size):
         super(NoAttention, self).__init__(attributes, in_features, out_features, norm_size[1])
 
-        self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+        # self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
         for attr in self.attributes:
             setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
 
@@ -118,15 +124,16 @@ class NoAttention(Base):
 class ScOd(Base):
     def __init__(self, attributes, in_features, out_features, norm_size):
         super(ScOd, self).__init__(attributes, in_features, out_features, norm_size[1])
-        self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+        # self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
         self.norm = norm_size[0]
         # Also define attention layer for attribute
         for attr in self.attributes:
             name = attr.name
             setattr(self, 'attention_' + name + '_xb', nn.Conv2d(self.in_features, 1, (1, 1)))
             setattr(self, 'attention_' + name + '_xa', nn.Conv2d(self.in_features, 512, (1, 1)))
-            if self.norm:
-                setattr(self, 'att_nl', nn.Softmax(2))
+            # if self.norm:
+            #     setattr(self, 'att_nl', nn.Softmax(2))
 
     def forward(self, x):
         results = []
@@ -136,10 +143,7 @@ class ScOd(Base):
             # print(xb.shape)
             xa = getattr(self, 'attention_' + name + '_xa')(x)
             # print(xa.shape)
-            if self.norm:
-                # feature_w, feature_h = xa.size(2), xa.size(3)
-                xa = getattr(self, 'att_nl')(xa.view(xa.size(0), xa.size(1), -1)).view(
-                    xa.size())
+            xa = self.sigmoid(xa) if self.norm else xa
             # .sum((2, 3)) sum func has big problem, which make pro
             # collapse when GPU memory has half empty
             y = xb.mul(xa)
@@ -163,8 +167,6 @@ class OvFc(NoAttention):
             setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (1, 1)))
             setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (1, 1)))
             setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
-            if self.norm:
-                setattr(self, 'att_nl', nn.Softmax(2))
 
     def forward(self, x):
         results = []
@@ -173,10 +175,8 @@ class OvFc(NoAttention):
             cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
             cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
             cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
-            if self.norm:
-                cv3_rl = getattr(self, 'att_nl')(cv3_rl.view(
-                    cv3_rl.size(0), cv3_rl.size(1), -1)).view(cv3_rl.size())
-            y = cv3_rl.mul(x)
+            cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
+            y = cv3_rl * x
             y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
             y = getattr(self, 'fc_' + name + '_1')(y)
             y = self.relu(y)
@@ -188,3 +188,43 @@ class OvFc(NoAttention):
         return results
 
 
+class PrTp(NoAttention):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(PrTp, self).__init__(attributes, in_features, out_features, norm_size)
+        self.norm = norm_size[0]
+        # Also define attention layer for attribute
+        for attr in self.attributes:
+            name = attr.name
+            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
+
+            # setattr(self, 'prototype_' + name + '_coe1', nn.AdaptiveAvgPool2d(1))
+            setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
+            setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.in_features))
+
+    def forward(self, x):
+        results = []
+        for attr in self.attributes:
+            name = attr.name
+            cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
+            cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
+            cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
+            cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
+
+            # compute prototype coefficient
+            prototype_coe1 = self.relu(getattr(self, 'attention_' + name + '_cv1')(self.global_pool(x)))
+            prototype_coe2 = self.sigmoid(getattr(self, 'attention_' + name + '_cv2')(prototype_coe1))
+
+            # multi prototype with attention map to produce new attention map
+            new_attention = prototype_coe2[..., None, None] * cv3_rl
+            y = new_attention * x
+            y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
+            y = getattr(self, 'fc_' + name + '_1')(y)
+            y = self.relu(y)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+        return results

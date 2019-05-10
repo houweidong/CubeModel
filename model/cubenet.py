@@ -31,7 +31,8 @@ class CubeNet(nn.Module):
         # __call__ only. Simply calling forward() or features() will result in missing scope name in traced graph.
         # Override here so that in multi-gpu training case when model is replicated, the forward function of feature
         # extractor still gets overriden
-        self.feature_extractor.forward = self.feature_extractor.features
+        if hasattr(self.feature_extractor, 'features'):
+            self.feature_extractor.forward = self.feature_extractor.features
         x = self.feature_extractor(x)
         result = self.classifier(x)
         return result
