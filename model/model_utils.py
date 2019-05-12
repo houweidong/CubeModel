@@ -196,8 +196,8 @@ class PrTp(NoAttention):
         for attr in self.attributes:
             name = attr.name
             # 10 prototype just for test
-            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (3, 3)))
-            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (3, 3)))
+            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (3, 3), padding=1))
+            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (3, 3), padding=1))
             setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 10, (1, 1)))
 
             # setattr(self, 'prototype_' + name + '_coe1', nn.AdaptiveAvgPool2d(1))
@@ -212,12 +212,14 @@ class PrTp(NoAttention):
             cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
             cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
             cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
-            # cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
-            cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
+            cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
+            # cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
 
             # compute prototype coefficient
-            prototype_coe1 = self.relu(getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1)))
+            # prototype_coe1 = self.relu(getattr(self, 'prototype_' + name + '_coe1')(
+            # self.global_pool(x).view(x.size(0), -1)))
             # prototype_coe2 = self.sigmoid(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
+            prototype_coe1 = getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1))
             prototype_coe2 = self.tanh(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
 
             # multi prototype with attention map to produce new attention map

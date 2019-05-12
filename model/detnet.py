@@ -184,7 +184,7 @@ class DetNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_new_layer(256, layers[3])
-        # self.layer5 = self._make_new_layer(256, layers[4])
+        self.layer5 = self._make_new_layer(256, layers[4])
         # self.avgpool = nn.AdaptiveAvgPool2d(1)
         # self.fc = nn.Linear(1024, num_classes)
 
@@ -236,7 +236,7 @@ class DetNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        # x = self.layer5(x)
+        x = self.layer5(x)
 
         # x = self.avgpool(x)
         # x = x.view(x.size(0), -1)
@@ -266,7 +266,7 @@ def load_pretrained_imagenet_weights(model, state_dict):
                            .format(name))
 
 
-def detnet50(pretrained=False):
+def detnet59(pretrained=False):
     """Constructs a ResNet-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
