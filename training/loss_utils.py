@@ -2,6 +2,12 @@ import torch
 import torch.nn.functional as F
 
 
+def exp_loss(pred, alpha=-23, beta=-18):
+
+    loss = 0.0 * torch.exp(alpha * (pred + beta / float(7 * 7)))
+    return loss.mean()
+
+
 # alpha now only support for binary classification
 # TODO Change it to class so that gamma can also be learned
 def focal_loss(pred, target, gamma=2, alpha=None, size_average=True):
@@ -103,5 +109,10 @@ def multitask_loss(output, label, loss_fns):
             output_fil = torch.masked_select(output[i], mask[i]).view(-1, output[i].size()[1])
             gt = torch.masked_select(target[i], mask[i])
             total_loss += loss_fns[i](output_fil, gt)
+    n_tasks_remain = len(output) - n_tasks
+    for j in range(n_tasks_remain):
+        # TODO deal with the mask condition
+        total_loss += loss_fns[j + n_tasks](output[j + n_tasks])
 
     return total_loss
+

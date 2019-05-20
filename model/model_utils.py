@@ -164,8 +164,8 @@ class OvFc(NoAttention):
         # Also define attention layer for attribute
         for attr in self.attributes:
             name = attr.name
-            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (3, 3)))
-            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (3, 3)))
+            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (1, 1)))
             setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
 
     def forward(self, x):
@@ -233,4 +233,55 @@ class PrTp(NoAttention):
             if attr.rec_trainable:  # Also return the recognizable branch if necessary
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
                 results.append(recognizable)
+        return results
+
+
+class CamOvFc(NoAttention):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(CamOvFc, self).__init__(attributes, in_features, out_features, norm_size)
+        self.norm = norm_size[0]
+        # Also define attention layer for attribute
+        for attr in self.attributes:
+            name = attr.name
+            # 10 prototype just for test
+            # setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (3, 3), padding=1))
+            # setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (3, 3), padding=1))
+            # setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (1, 1)))
+            setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
+        self.softmax = torch.nn.Softmax(dim=2)
+        self.pool = nn.MaxPool2d(2, stride=2)
+        self.global_max_pool = nn.AdaptiveMaxPool2d(1)
+        self.tanh = torch.nn.Tanh()
+
+    def forward(self, x):
+        results = []
+        cam_results = []
+        for attr in self.attributes:
+            name = attr.name
+            cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
+            cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
+            cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
+            # cv3_rl_sigmoid = self.sigmoid(cv3_rl) if self.norm else cv3_rl
+            # cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
+
+            # compute softmax to cam
+            cam_softmax = self.softmax(cv3_rl.view(cv3_rl.size(0), cv3_rl.size(1), -1))
+            # cam_pool = self.pool(cam_softmax.view(cv3_rl.size()))
+            cam = self.global_max_pool(cam_softmax)
+
+            # y = cv3_rl_sigmoid * x
+            y = cv3_rl + x
+            y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
+            y = getattr(self, 'fc_' + name + '_1')(y)
+            y = self.relu(y)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+            # results.append(cam)
+            cam_results.append(cam)
+        results.extend(cam_results)
         return results

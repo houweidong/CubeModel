@@ -79,7 +79,7 @@ def run(opt):
         optimizer.load_state_dict(checkpoint['optimizer'])
 
     device = 'cuda'
-    loss_fns, metrics = get_losses_metrics(attr, opt.categorical_loss)
+    loss_fns, metrics = get_losses_metrics(attr, opt.categorical_loss, opt.attention)
     trainer = create_supervised_trainer(model, optimizer,
                                         lambda pred, target: multitask_loss(pred, target, loss_fns=loss_fns),
                                         device=device)
