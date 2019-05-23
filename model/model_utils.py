@@ -3,7 +3,7 @@ from torchvision.models import vgg
 import torch.nn as nn
 from data.attributes import Attribute
 import torch
-from model import detnet
+from model import detnet, fpn18
 
 def modify_vgg(model):
     model._features = model.features
@@ -32,6 +32,10 @@ def get_backbone_network(conv, pretrained=True):
         detnet_getter = getattr(detnet, conv)
         backbone = detnet_getter(pretrained=pretrained)
         feature_map_depth = 1024
+    elif conv.startswith('fpn'):
+        fpn_getter = getattr(fpn18, conv)
+        backbone = fpn_getter()
+        feature_map_depth = backbone.out_channels
     else:
         if pretrained:
             backbone = pretrainedmodels.__dict__[conv](num_classes=1000)
@@ -68,7 +72,7 @@ class Base(nn.Module):
             assert isinstance(attr, Attribute)
         super(Base, self).__init__()
         self.img_size = img_size
-        self.map_size = int(self.img_size / 224 * 7)
+        # self.map_size = int(self.img_size / 224 * 7)
         self.in_features = in_features
         self.out_features = out_features
         self.attributes = attributes
