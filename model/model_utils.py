@@ -4,6 +4,7 @@ import torch.nn as nn
 from data.attributes import Attribute
 import torch
 from model import detnet, fpn18
+import math
 
 def modify_vgg(model):
     model._features = model.features
@@ -288,4 +289,79 @@ class CamOvFc(NoAttention):
             # results.append(cam)
             cam_results.append(cam)
         results.extend(cam_results)
+        return results
+
+
+class Custom(NoAttention):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(Custom, self).__init__(attributes, in_features, out_features, norm_size)
+        # need to try: size [3, 5, 7]  step[1, 2, 3]
+        size = 3
+        step = 1
+        self.prototype, self.prototype_num = self.prepare_prototype(size, step)
+
+        self.norm = norm_size[0]
+        # Also define attention layer for attribute
+        for attr in self.attributes:
+            name = attr.name
+            setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
+            setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.prototype_num))
+        self.tanh = torch.nn.Tanh()
+
+    def prepare_prototype(self, size, step):
+        feature_size = 7
+        length = int(math.ceil((feature_size - 1) / step))
+        feature_size_supple = length * step + 1
+        prototype = torch.zeros((1, (length + 1) ** 2, feature_size_supple, feature_size_supple))
+        margin1 = int(math.ceil((size - 1) / 2))
+        margin2 = size - 1 - margin1
+        channal_num = -1
+        # row
+        for i in range(0, feature_size_supple, step):
+            # print('i', i)
+            # col
+            for j in range(0, feature_size_supple, step):
+                # print('j', j)
+                channal_num += 1
+                row1 = i - margin1
+                row2 = i + margin2
+                col1 = j - margin1
+                col2 = j + margin2
+                row1 = row1 if row1 >= 0 else 0
+                col1 = col1 if col1 >= 0 else 0
+                row2 = row2 if row2 < feature_size_supple else feature_size_supple
+                col2 = col2 if col2 < feature_size_supple else feature_size_supple
+                prototype[0, channal_num, row1:row2+1, col1:col2+1] = 1
+
+        return prototype.cuda(), (length + 1) ** 2
+
+    def forward(self, x):
+        results = []
+        for attr in self.attributes:
+            name = attr.name
+            # cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
+            # cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
+            # cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
+            # cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
+            # cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
+
+            # compute prototype coefficient
+            # prototype_coe1 = self.relu(getattr(self, 'prototype_' + name + '_coe1')(
+            # self.global_pool(x).view(x.size(0), -1)))
+            # prototype_coe2 = self.sigmoid(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
+            prototype_coe1 = getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1))
+            prototype_coe2 = self.tanh(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
+
+            # multi prototype with attention map to produce new attention map
+            new_attention = (prototype_coe2[..., None, None] * self.prototype).sum(1, keepdim=True)
+            y = new_attention * x
+            y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
+            y = getattr(self, 'fc_' + name + '_1')(y)
+            y = self.relu(y)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+
         return results
