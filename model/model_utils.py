@@ -296,16 +296,22 @@ class Custom(NoAttention):
     def __init__(self, attributes, in_features, out_features, norm_size):
         super(Custom, self).__init__(attributes, in_features, out_features, norm_size)
         # need to try: size [3, 5, 7]  step[1, 2, 3]
-        size = 3
-        step = 1
+        size = 7
+        step = 3
         self.prototype, self.prototype_num = self.prepare_prototype(size, step)
+        self.custom_pool = nn.AvgPool2d(size, stride=step, padding=(size-1)//2)
 
         self.norm = norm_size[0]
         # Also define attention layer for attribute
         for attr in self.attributes:
             name = attr.name
-            setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
-            setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.prototype_num))
+
+            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (3, 3), padding=1))
+            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (3, 3), padding=1))
+            setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 1, (1, 1)))
+
+            # setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
+            # setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.prototype_num))
         self.tanh = torch.nn.Tanh()
 
     def prepare_prototype(self, size, step):
@@ -339,9 +345,10 @@ class Custom(NoAttention):
         results = []
         for attr in self.attributes:
             name = attr.name
-            # cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
-            # cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
-            # cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
+            cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
+            cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
+            cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
+            cv3_rl = self.sigmoid(self.custom_pool(cv3_rl)).view(x.size(0), -1)
             # cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
             # cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
 
@@ -349,11 +356,12 @@ class Custom(NoAttention):
             # prototype_coe1 = self.relu(getattr(self, 'prototype_' + name + '_coe1')(
             # self.global_pool(x).view(x.size(0), -1)))
             # prototype_coe2 = self.sigmoid(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
-            prototype_coe1 = getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1))
-            prototype_coe2 = self.tanh(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
+            # prototype_coe1 = getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1))
+            # prototype_coe2 = self.tanh(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
 
             # multi prototype with attention map to produce new attention map
-            new_attention = (prototype_coe2[..., None, None] * self.prototype).sum(1, keepdim=True)
+            # new_attention = (prototype_coe2[..., None, None] * self.prototype).sum(1, keepdim=True)
+            new_attention = (cv3_rl[..., None, None] * self.prototype).sum(1, keepdim=True)
             y = new_attention * x
             y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
             y = getattr(self, 'fc_' + name + '_1')(y)

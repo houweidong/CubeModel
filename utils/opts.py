@@ -118,7 +118,7 @@ def parse_opts():
     parser.add_argument(
         '-nt',
         '--n_threads',
-        default=8,
+        default=4,
         type=int,
         help='Number of threads for multi-thread loading')
     parser.add_argument(
@@ -169,7 +169,7 @@ def parse_opts():
     parser.add_argument(
         '-at',
         '--attention',
-        default='NoAttention',
+        default='Custom',
         type=str,
         choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom'],
         help='Whether to add attention mechanism of each attribute'
@@ -187,7 +187,7 @@ def parse_opts():
         '-li',
         '--log_interval',
         type=int,
-        default=10,
+        default=20,
         help='how many batches to wait before logging training status')
     parser.add_argument(
         '-ld',
