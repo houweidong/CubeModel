@@ -1,11 +1,13 @@
 import pretrainedmodels
-from torchvision.models import vgg
+# from torchvision.models import vgg
 import torch.nn as nn
 from data.attributes import Attribute
 import torch
 from model import detnet, fpn18
+from model import vgg
 import math
 import numpy as np
+
 
 def modify_vgg(model):
     model._features = model.features
@@ -296,11 +298,16 @@ class CamOvFc(NoAttention):
 class Custom(NoAttention):
     def __init__(self, attributes, in_features, out_features, norm_size):
         super(Custom, self).__init__(attributes, in_features, out_features, norm_size)
-        # need to try: size [3, 5, 7]  step[1, 2, 3]
-        size = 7
-        step = 3
-        self.prototype, self.prototype_num = self.prepare_prototype(size, step)
-        self.custom_pool = nn.AvgPool2d(size, stride=step, padding=(size-1)//2)
+        # need to try: size [3, 5, 7]  step[1, 2, 3, 4, 5]
+        size = 5
+        step = 4
+        sigma = 2
+        feature_size = 14
+        add = step - ((feature_size - 1) % step)
+        self.prototype, self.prototype_num = self.prepare_prototype(size, step, feature_size, sigma)
+        # self.custom_pool = nn.AvgPool2d(size, stride=step, padding=(size-1)//2)
+        self.custom_pool = nn.AvgPool2d(size, stride=step)
+        self.attention_pad = nn.ReplicationPad2d(((size-1)//2, (size-1)//2 + add, (size-1)//2, (size-1)//2 + add))
 
         self.norm = norm_size[0]
         # Also define attention layer for attribute
@@ -315,14 +322,13 @@ class Custom(NoAttention):
             # setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.prototype_num))
         self.tanh = torch.nn.Tanh()
 
-    def prepare_prototype(self, size, step):
+    def prepare_prototype(self, size, step, feature_size, sigma):
 
         col = torch.Tensor([np.arange(size)] * size).view((size, size))
         row = torch.transpose(torch.Tensor([np.arange(size)] * size).view((size, size)), 0, 1)
-        sigma = 2
         attention_ceil = torch.exp(-1 * (((col - (size-1)/2) ** 2) / sigma ** 2 + ((row - (size-1)/2) ** 2) / sigma ** 2))
 
-        feature_size = 7
+        # feature_size = 14
         length = int(math.ceil((feature_size - 1) / step))
         feature_size_supple = length * step + 1
         prototype = torch.zeros((1, (length + 1) ** 2, feature_size_supple, feature_size_supple))
@@ -352,6 +358,7 @@ class Custom(NoAttention):
 
                 prototype[0, channal_num, row1:row2+1, col1:col2+1] = attention_ceil[row11:row12+1, col11:col12+1]
 
+        prototype = prototype[:, :, :feature_size, :feature_size]
         return prototype.cuda(), (length + 1) ** 2
 
     def forward(self, x):
@@ -361,7 +368,7 @@ class Custom(NoAttention):
             cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
             cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
             cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
-            cv3_rl = self.sigmoid(self.custom_pool(cv3_rl)).view(x.size(0), -1)
+            cv3_rl = self.sigmoid(self.custom_pool(self.attention_pad(cv3_rl))).view(x.size(0), -1)
             # cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
             # cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
 
