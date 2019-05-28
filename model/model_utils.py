@@ -5,6 +5,7 @@ from data.attributes import Attribute
 import torch
 from model import detnet, fpn18
 import math
+import numpy as np
 
 def modify_vgg(model):
     model._features = model.features
@@ -315,6 +316,12 @@ class Custom(NoAttention):
         self.tanh = torch.nn.Tanh()
 
     def prepare_prototype(self, size, step):
+
+        col = torch.Tensor([np.arange(size)] * size).view((size, size))
+        row = torch.transpose(torch.Tensor([np.arange(size)] * size).view((size, size)), 0, 1)
+        sigma = 2
+        attention_ceil = torch.exp(-1 * (((col - (size-1)/2) ** 2) / sigma ** 2 + ((row - (size-1)/2) ** 2) / sigma ** 2))
+
         feature_size = 7
         length = int(math.ceil((feature_size - 1) / step))
         feature_size_supple = length * step + 1
@@ -333,11 +340,17 @@ class Custom(NoAttention):
                 row2 = i + margin2
                 col1 = j - margin1
                 col2 = j + margin2
+
+                row11 = 0 if row1 >= 0 else -row1
+                row12 = size - 1 if row2 < feature_size_supple else (size-1)-(row2-feature_size_supple+1)
+                col11 = 0 if col1 >= 0 else -col1
+                col12 = size - 1 if col2 < feature_size_supple else (size-1)-(col2-feature_size_supple+1)
                 row1 = row1 if row1 >= 0 else 0
                 col1 = col1 if col1 >= 0 else 0
                 row2 = row2 if row2 < feature_size_supple else feature_size_supple
                 col2 = col2 if col2 < feature_size_supple else feature_size_supple
-                prototype[0, channal_num, row1:row2+1, col1:col2+1] = 1
+
+                prototype[0, channal_num, row1:row2+1, col1:col2+1] = attention_ceil[row11:row12+1, col11:col12+1]
 
         return prototype.cuda(), (length + 1) ** 2
 
