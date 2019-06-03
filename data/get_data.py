@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from torchvision.transforms import Compose, Resize, ToTensor, \
-    RandomHorizontalFlip, Normalize, RandomRotation
+    RandomHorizontalFlip, Normalize, RandomRotation, ColorJitter
 from torch.utils.data import DataLoader
 import torch.utils.data as data
 from data.read_wider import WiderAttr

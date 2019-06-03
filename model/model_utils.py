@@ -7,7 +7,7 @@ from model import detnet, fpn18
 from model import vgg
 import math
 import numpy as np
-
+import torch.nn.functional as F
 
 def modify_vgg(model):
     model._features = model.features
@@ -85,7 +85,7 @@ class Base(nn.Module):
 
         for attr in self.attributes:
             name = attr.name
-            setattr(self, 'fc_' + name + '_classifier', nn.Linear(512, 2))
+            setattr(self, 'fc_' + name + '_classifier', nn.Linear(512, 1))
             # Also define a branch for classifying recognizability if necessary
             if attr.rec_trainable:
                 setattr(self, 'fc_' + name + '_recognizable', nn.Linear(512, 2))
@@ -285,6 +285,7 @@ class CamOvFc(NoAttention):
             y = getattr(self, 'fc_' + name + '_1')(y)
             y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
+            # cls = F.softmax(cls, 1)
             results.append(cls)
             if attr.rec_trainable:  # Also return the recognizable branch if necessary
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
@@ -300,10 +301,10 @@ class Custom(NoAttention):
         super(Custom, self).__init__(attributes, in_features, out_features, norm_size)
         # need to try: size [3, 5, 7]  step[1, 2, 3, 4, 5]
         size = 5
-        step = 4
-        sigma = 2
+        step = 3
+        sigma = 1.5
         feature_size = 14
-        add = step - ((feature_size - 1) % step)
+        add = step - ((feature_size - 1) % step) if step != 1 else 0
         self.prototype, self.prototype_num = self.prepare_prototype(size, step, feature_size, sigma)
         # self.custom_pool = nn.AvgPool2d(size, stride=step, padding=(size-1)//2)
         self.custom_pool = nn.AvgPool2d(size, stride=step)
@@ -320,7 +321,8 @@ class Custom(NoAttention):
 
             # setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
             # setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), self.prototype_num))
-        self.tanh = torch.nn.Tanh()
+        self.tanh = nn.Tanh()
+        self.dropout = nn.Dropout(0.1)
 
     def prepare_prototype(self, size, step, feature_size, sigma):
 
@@ -383,8 +385,8 @@ class Custom(NoAttention):
             # new_attention = (prototype_coe2[..., None, None] * self.prototype).sum(1, keepdim=True)
             new_attention = (cv3_rl[..., None, None] * self.prototype).sum(1, keepdim=True)
             y = new_attention * x
-            y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
-            y = getattr(self, 'fc_' + name + '_1')(y)
+            y = self.dropout(getattr(self, 'global_pool')(y).view(y.size(0), -1))
+            y = self.dropout(getattr(self, 'fc_' + name + '_1')(y))
             y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
             results.append(cls)
