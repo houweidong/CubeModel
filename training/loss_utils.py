@@ -110,7 +110,13 @@ def get_categorial_scale(loss):
                 (18275+7571)/2885, (26622+1101)/1008, (19045+1252)/8434, (26507+229)/1995]
     result = []
     for scale in scales:
-        result.append(1/(1+scale))
+        # result.append(1/(1+scale))
+        if 0 <= scale < 5:
+            result.append(0.5)
+        elif 5 <= scale < 10:
+            result.append(1/3)
+        elif 10 <= scale:
+            result.append(0.25)
 
     return result
 
