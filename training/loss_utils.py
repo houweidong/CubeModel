@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-
+import math
 
 def exp_loss(pred, alpha=-23, beta=-18):
 
@@ -89,6 +89,96 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
         return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float())
 
 
+class Ohem(object):
+
+    def __init__(self, pos_length=100, neg_length=100):
+        self.pos_length = pos_length
+        self.neg_length = neg_length
+        self.pos_pool = []
+        self.neg_pool = []
+        self.distance = 0
+        self.ratio = 1
+
+    def __call__(self, pred, target):
+        assert pred.size()[1] == 2 or pred.size()[1] == 1  # Only support binary case
+
+        pos_mask = target.byte()
+        neg_mask = 1 - pos_mask
+
+        n_pos = int(torch.sum(pos_mask))
+        n_neg = int(torch.sum(neg_mask))
+        if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length and \
+                ((self.ratio > 1 and n_neg > 0 and n_neg > n_pos * self.ratio) or
+                 (self.ratio < 1 and n_pos > 0 and n_pos > n_neg / self.ratio)):
+
+            if self.ratio > 1:
+                n_selected = max(n_pos * self.ratio, 1)
+
+                ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
+                # ce_loss = F.cross_entropy(pred, target, reduction='none')
+
+                # generate top k neg ce loss mask
+                loss_neg_samples = torch.masked_select(ce_loss, neg_mask)
+                _, index = torch.topk(loss_neg_samples, n_selected)
+
+                # Get mask of selected negative samples on original mask tensor
+                selected_neg_mask = torch.zeros(int(n_neg), device='cuda')
+                selected_neg_mask.scatter_(0, index, 1)  # a [n_neg] size mask
+                neg_index = torch.masked_select(
+                    torch.arange(n_pos + n_neg, dtype=torch.long, device='cuda', requires_grad=False),
+                    neg_mask)  # Mapping from [n_neg] to [n_pos+n_neg] mask
+                neg_mask.scatter_(0, neg_index, selected_neg_mask.byte())
+
+                # Return average loss of all selected samples
+                mask = neg_mask + pos_mask
+                masked_loss = torch.masked_select(ce_loss, mask)
+            else:
+                n_selected = max(n_neg / self.ratio, 1)
+
+                ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
+                # ce_loss = F.cross_entropy(pred, target, reduction='none')
+
+                # generate top k pos ce loss mask
+                loss_pos_samples = torch.masked_select(ce_loss, pos_mask)
+                _, index = torch.topk(loss_pos_samples, n_selected)
+
+                # Get mask of selected pos samples on original mask tensor
+                selected_pos_mask = torch.zeros(int(n_pos), device='cuda')
+                selected_pos_mask.scatter_(0, index, 1)  # a [n_neg] size mask
+                pos_index = torch.masked_select(
+                    torch.arange(n_pos + n_neg, dtype=torch.long, device='cuda', requires_grad=False),
+                    pos_mask)  # Mapping from [n_neg] to [n_pos+n_neg] mask
+                pos_mask.scatter_(0, pos_index, selected_pos_mask.byte())
+
+                # Return average loss of all selected samples
+                mask = neg_mask + pos_mask
+                masked_loss = torch.masked_select(ce_loss, mask)
+
+            if n_pos > 0:
+                self.pos_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), pos_mask).detach().cpu().numpy()))
+            if n_neg > 0:
+                self.neg_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), neg_mask).detach().cpu().numpy()))
+            self.pos_pool = self.pos_pool[-self.pos_length:]
+            self.neg_pool = self.neg_pool[-self.neg_length:]
+
+            pos_mean = 1 - self.pos_pool.mean()
+            neg_mean = self.neg_pool.mean()
+            self.distance = neg_mean - pos_mean
+            if abs(self.distance) < 0.1:
+                self.ratio = 1
+            else:
+                self.ratio = math.exp((1 - abs(self.distance)) * 0.67)
+                self.ratio = self.ratio if self.distance > 0 else 1 / self.ratio
+            # np_contrast = anp / app
+            return masked_loss.mean()  # , np_contrast
+        else:
+            # anp = torch.masked_select(pred[:, 0], neg_mask).mean()
+            # app = torch.masked_select(pred[:, 1], pos_mask).mean()
+            # np_contrast = anp / app
+            # return F.cross_entropy(pred, target)  # , np_contrast
+            return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float())
+
+
 def reverse_ohem_loss(pred, target, ratio=3): return ohem_loss(pred, target, ratio, reverse=True)
 
 
@@ -96,7 +186,7 @@ def get_categorial_loss(loss):
     if loss == 'cross_entropy':
         return F.cross_entropy
     elif loss == 'ohem':
-        return ohem_loss
+        return Ohem, ohem_loss
     elif loss == 'focal':
         return focal_loss
     else:
@@ -111,12 +201,13 @@ def get_categorial_scale(loss):
     result = []
     for scale in scales:
         # result.append(1/(1+scale))
-        if 0 <= scale < 5:
-            result.append(0.5)
-        elif 5 <= scale < 10:
-            result.append(1/3)
-        elif 10 <= scale:
-            result.append(0.25)
+        # if 0 <= scale < 5:
+        #     result.append(0.5)
+        # elif 5 <= scale < 10:
+        #     result.append(1/3)
+        # elif 10 <= scale:
+        #     result.append(0.25)
+        result.append(scale)
 
     return result
 

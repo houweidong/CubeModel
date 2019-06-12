@@ -7,22 +7,23 @@ import torch
 from functools import partial
 
 
-def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'):
-    loss_fn = get_categorial_loss(categorical_loss)
+def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None', pool_num=100):
+    loss_fn, loss_fn_val = get_categorial_loss(categorical_loss)
     scales = get_categorial_scale(categorical_loss)
     losses, metrics = [], []
     cam_losses = []
 
     for attr, scale in zip(attrs, scales):
         # For attribute classification
-        losses.append(partial(loss_fn, alpha=scale))
+        if categorical_loss in ['ohem', 'focal']:
+            losses.append(partial(loss_fn, pos_length=pool_num, neg_length=pool_num * scale)())
         if attr.data_type == AttributeType.BINARY:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(loss_fn)])
             metrics.append(
                 [AveragePrecision(activation=lambda pred: torch.sigmoid(pred)),
-                 Accuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fn)])
+                 Accuracy(output_transform=lambda pred, target: torch.sigmoid(pred)), Loss(loss_fn_val)])
         elif attr.data_type == AttributeType.MULTICLASS:
-            metrics.append([Accuracy(), Loss(loss_fn)])
+            metrics.append([Accuracy(), Loss(loss_fn_val)])
         elif attr.data_type == AttributeType.NUMERICAL:
             # not support now
             pass
