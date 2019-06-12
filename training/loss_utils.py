@@ -92,8 +92,8 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
 class Ohem(object):
 
     def __init__(self, pos_length=100, neg_length=100):
-        self.pos_length = pos_length
-        self.neg_length = neg_length
+        self.pos_length = int(pos_length)
+        self.neg_length = int(neg_length)
         self.pos_pool = []
         self.neg_pool = []
         self.distance = 0
@@ -112,7 +112,7 @@ class Ohem(object):
                  (self.ratio < 1 and n_pos > 0 and n_pos > n_neg / self.ratio)):
 
             if self.ratio > 1:
-                n_selected = max(n_pos * self.ratio, 1)
+                n_selected = int(max(n_pos * self.ratio, 1))
 
                 ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
                 # ce_loss = F.cross_entropy(pred, target, reduction='none')
@@ -133,7 +133,7 @@ class Ohem(object):
                 mask = neg_mask + pos_mask
                 masked_loss = torch.masked_select(ce_loss, mask)
             else:
-                n_selected = max(n_neg / self.ratio, 1)
+                n_selected = int(max(n_neg / self.ratio, 1))
 
                 ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
                 # ce_loss = F.cross_entropy(pred, target, reduction='none')
@@ -161,13 +161,13 @@ class Ohem(object):
             self.pos_pool = self.pos_pool[-self.pos_length:]
             self.neg_pool = self.neg_pool[-self.neg_length:]
 
-            pos_mean = 1 - self.pos_pool.mean()
-            neg_mean = self.neg_pool.mean()
+            pos_mean = 1 - sum(self.pos_pool) / len(self.pos_pool)
+            neg_mean = sum(self.neg_pool) / len(self.neg_pool)
             self.distance = neg_mean - pos_mean
             if abs(self.distance) < 0.1:
                 self.ratio = 1
             else:
-                self.ratio = math.exp((1 - abs(self.distance)) * 0.67)
+                self.ratio = math.exp((1 - abs(self.distance)) * 2)
                 self.ratio = self.ratio if self.distance > 0 else 1 / self.ratio
             # np_contrast = anp / app
             return masked_loss.mean()  # , np_contrast
@@ -176,6 +176,24 @@ class Ohem(object):
             # app = torch.masked_select(pred[:, 1], pos_mask).mean()
             # np_contrast = anp / app
             # return F.cross_entropy(pred, target)  # , np_contrast
+            if n_pos > 0:
+                self.pos_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), pos_mask).detach().cpu().numpy()))
+            if n_neg > 0:
+                self.neg_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), neg_mask).detach().cpu().numpy()))
+            if len(self.pos_pool) > self.pos_length:
+                self.pos_pool = self.pos_pool[-self.pos_length:]
+            if len(self.neg_pool) > self.neg_length:
+                self.neg_pool = self.neg_pool[-self.neg_length:]
+
+            if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length:
+                pos_mean = 1 - sum(self.pos_pool) / len(self.pos_pool)
+                neg_mean = sum(self.neg_pool) / len(self.neg_pool)
+                self.distance = neg_mean - pos_mean
+                if abs(self.distance) < 0.1:
+                    self.ratio = 1
+                else:
+                    self.ratio = math.exp((1 - abs(self.distance)) * 2)
+                    self.ratio = self.ratio if self.distance > 0 else 1 / self.ratio
             return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float())
 
 
