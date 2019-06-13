@@ -91,13 +91,18 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
 
 class Ohem(object):
 
-    def __init__(self, pos_length=100, neg_length=100):
+    def __init__(self, pos_length=1000, neg_length=1000):
         self.pos_length = int(pos_length)
         self.neg_length = int(neg_length)
         self.pos_pool = []
         self.neg_pool = []
         self.distance = 0
         self.ratio = 1
+
+        # super param
+        self.mi = 1
+        self.a = 2
+        self.base = math.e
 
     def __call__(self, pred, target):
         assert pred.size()[1] == 2 or pred.size()[1] == 1  # Only support binary case
@@ -107,11 +112,29 @@ class Ohem(object):
 
         n_pos = int(torch.sum(pos_mask))
         n_neg = int(torch.sum(neg_mask))
-        if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length and \
-                ((self.ratio > 1 and n_neg > 0 and n_neg > n_pos * self.ratio) or
-                 (self.ratio < 1 and n_pos > 0 and n_pos > n_neg / self.ratio)):
 
-            if self.ratio > 1:
+        if n_pos > 0:
+            self.pos_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), pos_mask).detach().cpu().numpy()))
+        if n_neg > 0:
+            self.neg_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), neg_mask).detach().cpu().numpy()))
+        if len(self.pos_pool) > self.pos_length:
+            self.pos_pool = self.pos_pool[-self.pos_length:]
+        if len(self.neg_pool) > self.neg_length:
+            self.neg_pool = self.neg_pool[-self.neg_length:]
+
+        if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length:
+            pos_mean = 1 - sum(self.pos_pool) / len(self.pos_pool)
+            neg_mean = sum(self.neg_pool) / len(self.neg_pool)
+            self.distance = neg_mean - pos_mean
+            self.ratio = math.pow(self.base, (1 - abs(self.distance)) ** self.mi * self.a)
+
+        print(self.distance)
+        if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length and \
+                abs(self.distance) > 0.1 and \
+                ((self.distance < 0 and n_neg > 0 and n_neg > n_pos * self.ratio) or
+                 (self.distance > 0 and n_pos > 0 and n_pos > n_neg * self.ratio)):
+
+            if self.distance < 0:
                 n_selected = int(max(n_pos * self.ratio, 1))
 
                 ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
@@ -133,7 +156,7 @@ class Ohem(object):
                 mask = neg_mask + pos_mask
                 masked_loss = torch.masked_select(ce_loss, mask)
             else:
-                n_selected = int(max(n_neg / self.ratio, 1))
+                n_selected = int(max(n_neg * self.ratio, 1))
 
                 ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
                 # ce_loss = F.cross_entropy(pred, target, reduction='none')
@@ -154,46 +177,9 @@ class Ohem(object):
                 mask = neg_mask + pos_mask
                 masked_loss = torch.masked_select(ce_loss, mask)
 
-            if n_pos > 0:
-                self.pos_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), pos_mask).detach().cpu().numpy()))
-            if n_neg > 0:
-                self.neg_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), neg_mask).detach().cpu().numpy()))
-            self.pos_pool = self.pos_pool[-self.pos_length:]
-            self.neg_pool = self.neg_pool[-self.neg_length:]
-
-            pos_mean = 1 - sum(self.pos_pool) / len(self.pos_pool)
-            neg_mean = sum(self.neg_pool) / len(self.neg_pool)
-            self.distance = neg_mean - pos_mean
-            if abs(self.distance) < 0.1:
-                self.ratio = 1
-            else:
-                self.ratio = math.exp((1 - abs(self.distance)) * 2)
-                self.ratio = self.ratio if self.distance > 0 else 1 / self.ratio
-            # np_contrast = anp / app
+            # print(self.ratio)
             return masked_loss.mean()  # , np_contrast
         else:
-            # anp = torch.masked_select(pred[:, 0], neg_mask).mean()
-            # app = torch.masked_select(pred[:, 1], pos_mask).mean()
-            # np_contrast = anp / app
-            # return F.cross_entropy(pred, target)  # , np_contrast
-            if n_pos > 0:
-                self.pos_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), pos_mask).detach().cpu().numpy()))
-            if n_neg > 0:
-                self.neg_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), neg_mask).detach().cpu().numpy()))
-            if len(self.pos_pool) > self.pos_length:
-                self.pos_pool = self.pos_pool[-self.pos_length:]
-            if len(self.neg_pool) > self.neg_length:
-                self.neg_pool = self.neg_pool[-self.neg_length:]
-
-            if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length:
-                pos_mean = 1 - sum(self.pos_pool) / len(self.pos_pool)
-                neg_mean = sum(self.neg_pool) / len(self.neg_pool)
-                self.distance = neg_mean - pos_mean
-                if abs(self.distance) < 0.1:
-                    self.ratio = 1
-                else:
-                    self.ratio = math.exp((1 - abs(self.distance)) * 2)
-                    self.ratio = self.ratio if self.distance > 0 else 1 / self.ratio
             return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float())
 
 
@@ -216,6 +202,8 @@ def get_categorial_scale(loss):
     scales = [(10263+2032)/16436, (19092+3243)/6396, (26284+991)/1456, (21674+422)/6635, (20991+1947)/5793,
                 (13339+1879)/13513, (26200+273)/2258, (14120+10369)/4242, (18731+7585)/2415, (8168+10010)/10553,
                 (18275+7571)/2885, (26622+1101)/1008, (19045+1252)/8434, (26507+229)/1995]
+
+    pos_num = [16436, 6396, 1456, 6635, 5793, 13513, 2258, 4242, 2415, 10553, 2885, 1008, 8434, 1995]
     result = []
     for scale in scales:
         # result.append(1/(1+scale))
@@ -227,7 +215,7 @@ def get_categorial_scale(loss):
         #     result.append(0.25)
         result.append(scale)
 
-    return result
+    return result, pos_num
 
 
 # TODO Add coefficient to losses

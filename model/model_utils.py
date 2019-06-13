@@ -113,13 +113,14 @@ class NoAttention(Base):
         self.global_pool = nn.AdaptiveAvgPool2d(1)
         for attr in self.attributes:
             setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
+        self.dropout = nn.Dropout(0.1)
 
     def forward(self, x):
-        x = self.global_pool(x).view(x.size(0), -1)
+        x = self.dropout(self.global_pool(x).view(x.size(0), -1))
         results = []
         for attr in self.attributes:
             name = attr.name
-            y = getattr(self, 'fc_' + name + '_1')(x)
+            y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
             y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
             results.append(cls)

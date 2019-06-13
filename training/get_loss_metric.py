@@ -7,16 +7,16 @@ import torch
 from functools import partial
 
 
-def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None', pool_num=100):
+def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'):
     loss_fn, loss_fn_val = get_categorial_loss(categorical_loss)
-    scales = get_categorial_scale(categorical_loss)
+    scales, pos_nums = get_categorial_scale(categorical_loss)
     losses, metrics = [], []
     cam_losses = []
 
-    for attr, scale in zip(attrs, scales):
+    for attr, scale, pos_num in zip(attrs, scales, pos_nums):
         # For attribute classification
         if categorical_loss in ['ohem', 'focal']:
-            losses.append(partial(loss_fn, pos_length=pool_num, neg_length=pool_num * scale)())
+            losses.append(partial(loss_fn, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
         if attr.data_type == AttributeType.BINARY:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(loss_fn)])
             metrics.append(
