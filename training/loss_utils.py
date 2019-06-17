@@ -2,11 +2,11 @@ import torch
 import torch.nn.functional as F
 import math
 
+
 def exp_loss(pred, alpha=-23, beta=-18):
 
     loss = 0.0 * torch.exp(alpha * (pred + beta / float(7 * 7)))
     return loss.mean()
-
 
 # alpha now only support for binary classification
 # TODO Change it to class so that gamma can also be learned
@@ -41,6 +41,10 @@ def focal_loss(pred, target, gamma=2, alpha=None, size_average=True):
         return loss.mean()
     else:
         return loss.sum()
+
+
+def binary_cn(pred, target):
+    return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float())
 
 
 # to solve the imbalance problem
@@ -91,7 +95,8 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
 
 class Ohem(object):
 
-    def __init__(self, pos_length=1000, neg_length=1000):
+    def __init__(self, state=True, pos_length=1000, neg_length=1000):
+        self.state = state
         self.pos_length = int(pos_length)
         self.neg_length = int(neg_length)
         self.pos_pool = []
@@ -100,8 +105,8 @@ class Ohem(object):
         self.ratio = 1
 
         # super param
-        self.mi = 1
-        self.a = 2
+        self.mi = 2
+        self.a = 3
         self.base = math.e
 
     def __call__(self, pred, target):
@@ -113,6 +118,7 @@ class Ohem(object):
         n_pos = int(torch.sum(pos_mask))
         n_neg = int(torch.sum(neg_mask))
 
+        # if self.state:
         if n_pos > 0:
             self.pos_pool.extend(list(torch.masked_select(torch.sigmoid(pred[:, 0]), pos_mask).detach().cpu().numpy()))
         if n_neg > 0:
@@ -128,9 +134,10 @@ class Ohem(object):
             self.distance = neg_mean - pos_mean
             self.ratio = math.pow(self.base, (1 - abs(self.distance)) ** self.mi * self.a)
 
-        print(self.distance)
-        if len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length and \
-                abs(self.distance) > 0.1 and \
+        print("distance: ", self.distance)
+        print("ratio: ", self.ratio)
+        if self.state and abs(self.distance) > 0.1 and \
+                len(self.pos_pool) >= self.pos_length and len(self.neg_pool) >= self.neg_length and \
                 ((self.distance < 0 and n_neg > 0 and n_neg > n_pos * self.ratio) or
                  (self.distance > 0 and n_pos > 0 and n_pos > n_neg * self.ratio)):
 
@@ -188,11 +195,12 @@ def reverse_ohem_loss(pred, target, ratio=3): return ohem_loss(pred, target, rat
 
 def get_categorial_loss(loss):
     if loss == 'cross_entropy':
-        return F.cross_entropy
+        # return F.cross_entropy, F.cross_entropy
+        return binary_cn, binary_cn
     elif loss == 'ohem':
         return Ohem, ohem_loss
     elif loss == 'focal':
-        return focal_loss
+        return focal_loss, focal_loss
     else:
         raise Exception("Loss '{}' is not supported".format(loss))
 

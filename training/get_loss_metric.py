@@ -1,10 +1,11 @@
-from ignite.metrics import CategoricalAccuracy, Loss, Accuracy
+from ignite.metrics import Loss
 from ignite.contrib.metrics import AveragePrecision
 from training.loss_utils import get_categorial_loss, reverse_ohem_loss, exp_loss, get_categorial_scale
 from data.attributes import AttributeType
 # import torch.nn.functional as F
 import torch
 from functools import partial
+from training.metric_utils import MyAccuracy
 
 
 def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'):
@@ -16,21 +17,23 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'
     for attr, scale, pos_num in zip(attrs, scales, pos_nums):
         # For attribute classification
         if categorical_loss in ['ohem', 'focal']:
-            losses.append(partial(loss_fn, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
+            losses.append(partial(loss_fn, state=True, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
+        else:
+            losses.append(loss_fn)
         if attr.data_type == AttributeType.BINARY:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(loss_fn)])
             metrics.append(
                 [AveragePrecision(activation=lambda pred: torch.sigmoid(pred)),
-                 Accuracy(output_transform=lambda pred, target: torch.sigmoid(pred)), Loss(loss_fn_val)])
+                 MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fn_val)])
         elif attr.data_type == AttributeType.MULTICLASS:
-            metrics.append([Accuracy(), Loss(loss_fn_val)])
+            metrics.append([MyAccuracy(), Loss(loss_fn_val)])
         elif attr.data_type == AttributeType.NUMERICAL:
             # not support now
             pass
         # For recognizability classification
         if attr.rec_trainable:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(reverse_ohem_loss)])
-            metrics.append([AveragePrecision(activation=lambda pred: torch.sigmoid(pred)), Accuracy(),
+            metrics.append([AveragePrecision(activation=lambda pred: torch.sigmoid(pred)), MyAccuracy(),
                             Loss(reverse_ohem_loss)])
             # Always use reverse OHEM loss for recognizability, at least for now
             losses.append(reverse_ohem_loss)
