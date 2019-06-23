@@ -110,6 +110,14 @@ class NoAttention(Base):
         super(NoAttention, self).__init__(attributes, in_features, out_features, norm_size[1])
 
         # self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+
+        # step or margin, one of them have to be 1
+        self.length = 5
+        self.step = 5   # distance between two groups
+
+        self.in_features = (512 - (self.length - 1)) // self.step
+        self.in_features = self.in_features + 1 if self.in_features % self.step else self.in_features
+
         self.global_pool = nn.AdaptiveAvgPool2d(1)
         for attr in self.attributes:
             setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
@@ -117,10 +125,20 @@ class NoAttention(Base):
 
     def forward(self, x):
         x = self.dropout(self.global_pool(x).view(x.size(0), -1))
+        temp = 0
+        end = -(self.length - 1)
+        for l in range(self.length):
+            # end = -(self.length * self.margin) + 1 + l*self.margin
+            if end >= 0:
+                temp = temp + x[:, l::self.step]
+            else:
+                temp = temp + x[:, l:end:self.step]
+            end += 1
+        # x = temp
         results = []
         for attr in self.attributes:
             name = attr.name
-            y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
+            y = self.dropout(getattr(self, 'fc_' + name + '_1')(temp))
             y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
             results.append(cls)

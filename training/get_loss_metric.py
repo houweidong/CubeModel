@@ -16,10 +16,11 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'
 
     for attr, scale, pos_num in zip(attrs, scales, pos_nums):
         # For attribute classification
-        if categorical_loss in ['ohem', 'focal']:
-            losses.append(partial(loss_fn, state=True, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
-        else:
-            losses.append(loss_fn)
+        # if categorical_loss in ['ohem', 'focal']:
+        #     losses.append(partial(loss_fn, state=True, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
+        # else:
+        #     losses.append(loss_fn)
+        losses.append(loss_fn_val)
         if attr.data_type == AttributeType.BINARY:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(loss_fn)])
             metrics.append(
