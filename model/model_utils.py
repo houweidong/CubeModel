@@ -112,11 +112,11 @@ class NoAttention(Base):
         # self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
 
         # step or margin, one of them have to be 1
-        self.length = 5
+        self.length = 7
         self.step = 5   # distance between two groups
 
         self.in_features = (512 - (self.length - 1)) // self.step
-        self.in_features = self.in_features + 1 if self.in_features % self.step else self.in_features
+        self.in_features = self.in_features + 1 if (512 - (self.length - 1)) % self.step else self.in_features
 
         self.global_pool = nn.AdaptiveAvgPool2d(1)
         for attr in self.attributes:
