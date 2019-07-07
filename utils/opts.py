@@ -22,7 +22,7 @@ def parse_opts():
         '--dataset',
         default='Wider',
         type=str,
-        choices=['Wider'],
+        choices=['Wider', 'Berkeley'],
         help='(Wider). Multiple datasets can be specified using comma as separator')
     # only support wider dataset now
     parser.add_argument(
@@ -171,7 +171,7 @@ def parse_opts():
         '--attention',
         default='Custom',
         type=str,
-        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom'],
+        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom', 'TwoLevel', 'ThreeLevel'],
         help='Whether to add attention mechanism of each attribute'
              'ScOd: second-order pooling'
              'OvFc: all over you face'

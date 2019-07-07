@@ -42,6 +42,41 @@ class WiderAttributes(Enum):
         return list(map(fuc, attrs_spc))
 
 
+class BerkeleyAttributes(Enum):
+    # { 0”：“男性”，“1”：“长发”，“2”：“太阳镜”“3”：“帽子”，“4”：“T-shirt”，“5”：“长袖”,
+    # “6”：“短裤”，“7”：“牛仔裤”“8”：“长裤”}
+    MALE = 0
+    LONGHAIR = 1
+    SUNGLASS = 2
+    HAT = 3
+    TSHIRT = 4
+    LONGSLEEVE = 5
+    SHORTS = 6
+    JEANS = 7
+    LONGPANTS = 8
+
+    def __str__(self):
+        return self.name.lower()
+
+    @staticmethod
+    def names():
+        return [a.name.lower() for a in BerkeleyAttributes]
+
+    @staticmethod
+    def list_attributes(opt):
+        out_rec = opt.specified_recognizable_attrs if opt.output_recognizable else []
+
+        def fuc(ar):
+            if str(ar) in out_rec:
+                return Attribute(ar, AttributeType.BINARY, rec_trainable=True)
+            else:
+                return Attribute(ar, AttributeType.BINARY, rec_trainable=False)
+
+        attrs_spc = filter(lambda x: str(x) in opt.specified_attrs,
+                           [attr for attr in BerkeleyAttributes])
+        return list(map(fuc, attrs_spc))
+
+
 class ErisedAttributes(Enum):
     GENDER = 0
     AGE = 1

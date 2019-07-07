@@ -44,3 +44,4 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'
     losses.extend(cam_losses)
 
     return losses, metrics
+

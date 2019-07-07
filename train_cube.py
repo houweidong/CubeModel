@@ -67,7 +67,7 @@ def run(opt):
         optimizer = Adam(parameters, lr=opt.lr, betas=opt.betas)
     else:
         raise Exception("Not supported")
-    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=opt.lr_patience, factor=opt.factor, min_lr=1e-4)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=opt.lr_patience, factor=opt.factor, min_lr=1e-6)
 
     # Loading checkpoint
     if opt.checkpoint:

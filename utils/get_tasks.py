@@ -1,4 +1,5 @@
 from data.attributes import WiderAttributes as WdAt
+from data.attributes import BerkeleyAttributes as BkAt
 from data.attributes import Attribute
 from collections import OrderedDict
 
@@ -14,6 +15,8 @@ def get_tasks(opt):
             # according to opt.specified_attrs, opt.specified_recognizable_attrs
             # and opt.output_recognizable generate tasks
             attrs_ds = WdAt.list_attributes(opt)
+        elif ds == 'Berkeley':
+            attrs_ds = BkAt.list_attributes(opt)
         else:
             raise Exception("Not supported dataset {}".format(ds))
 
