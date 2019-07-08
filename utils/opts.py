@@ -89,7 +89,7 @@ def parse_opts():
     parser.add_argument(
         '-ne',
         '--n_epochs',
-        default=60,
+        default=100,
         type=int,
         help='Number of total epochs to run')
     # parser.add_argument(
@@ -171,7 +171,8 @@ def parse_opts():
         '--attention',
         default='Custom',
         type=str,
-        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom', 'TwoLevel', 'ThreeLevel'],
+        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom',
+                 'TwoLevel', 'ThreeLevel', 'TwoLevelAuto'],
         help='Whether to add attention mechanism of each attribute'
              'ScOd: second-order pooling'
              'OvFc: all over you face'
