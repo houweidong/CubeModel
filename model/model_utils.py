@@ -436,14 +436,19 @@ class TwoLevel(Base):
 
         self.global_pool = nn.AdaptiveAvgPool2d(1)
         for attr in self.attributes:
-            setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
+            setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features * 2, 512))
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
         x1, x2, x3 = x
+        # x2 = 0. * self.dropout(self.global_pool(x2).view(x2.size(0), -1))
+        # x3 = self.dropout(self.global_pool(x3).view(x3.size(0), -1))
+        # x = torch.cat((x2, x3), 1)
+
         x2 = 0.1 * self.dropout(self.global_pool(x2).view(x2.size(0), -1))
         x3 = self.dropout(self.global_pool(x3).view(x3.size(0), -1))
         x = torch.cat((x2, x3), 1)
+
         # temp = 0
         # end = -(self.length - 1)
         # for l in range(self.length):
@@ -510,5 +515,66 @@ class ThreeLevel(Base):
             results.append(cls)
             if attr.rec_trainable:  # Also return the recognizable branch if necessary
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+        return results
+
+
+class TwoLevelAlone(Base):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(TwoLevelAlone, self).__init__(attributes, in_features, out_features, norm_size[1])
+
+        # self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+
+        # step or margin, one of them have to be 1
+        # self.length = 1
+        # self.step = 1   # distance between two groups
+        #
+        # self.in_features = (512 - (self.length - 1)) // self.step
+        # self.in_features = self.in_features + 1 if (512 - (self.length - 1)) % self.step else self.in_features
+
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        for attr in self.attributes:
+            setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        x1, x2, x3 = x
+        # x2 = 0. * self.dropout(self.global_pool(x2).view(x2.size(0), -1))
+        # x3 = self.dropout(self.global_pool(x3).view(x3.size(0), -1))
+        # x = torch.cat((x2, x3), 1)
+
+        x2 = self.dropout(self.global_pool(x2).view(x2.size(0), -1))
+        x3 = self.dropout(self.global_pool(x3).view(x3.size(0), -1))
+        # x = torch.cat((x2, x3), 1)
+
+        # temp = 0
+        # end = -(self.length - 1)
+        # for l in range(self.length):
+        #     # end = -(self.length * self.margin) + 1 + l*self.margin
+        #     if end >= 0:
+        #         temp = temp + x[:, l::self.step]
+        #     else:
+        #         temp = temp + x[:, l:end:self.step]
+        #     end += 1
+        # x = temp
+        results = []
+        for attr in self.attributes:
+            name = attr.name
+            y1 = self.dropout(getattr(self, 'fc_' + name + '_1')(x3))
+            y1 = self.relu(y1)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y1)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y1)
+                results.append(recognizable)
+
+        for attr in self.attributes:
+            name = attr.name
+            y2 = self.dropout(getattr(self, 'fc_' + name + '_1')(x2))
+            y2 = self.relu(y2)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y2)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y2)
                 results.append(recognizable)
         return results

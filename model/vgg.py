@@ -17,7 +17,8 @@ class MySequential(nn.Sequential):
         result = []
         for i, module in enumerate(self._modules.values()):
             input = module(input)
-            if i in [8, 12,  16]:
+            # [22, 32, 42]
+            if i in [15, 22, 29]:
                 result.append(input)
         return result
 

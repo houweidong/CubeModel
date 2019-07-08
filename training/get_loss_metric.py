@@ -41,6 +41,17 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'
         if attention == 'CamOvFc':
             # losses.append(exp_loss)
             cam_losses.append(exp_loss)
+
+    if attention in ['TwoLevelAlone', 'ThreeLevelAlone']:
+        for attr, scale, pos_num in zip(attrs, scales, pos_nums):
+            losses.append(loss_fn_val)
+            # For recognizability classification
+            if attr.rec_trainable:
+                # Always use reverse OHEM loss for recognizability, at least for now
+                losses.append(reverse_ohem_loss)
+            if attention == 'CamOvFc':
+                # losses.append(exp_loss)
+                cam_losses.append(exp_loss)
     losses.extend(cam_losses)
 
     return losses, metrics
