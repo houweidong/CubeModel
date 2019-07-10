@@ -153,7 +153,7 @@ def run(opt):
             print_summar_table(logger, attr_name, metrics_info['logger'])
 
             # Update Learning Rate
-            if name == 'val':
+            if name == 'train':
                 scheduler.step(metrics_info['logger']['attr']['ap'][-1])
 
     # kick everything off

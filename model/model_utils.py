@@ -630,3 +630,49 @@ class TwoLevelAlone(Base):
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y2)
                 results.append(recognizable)
         return results
+
+
+class ThreeLevelRNN(Base):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(ThreeLevelRNN, self).__init__(attributes, in_features, out_features, norm_size[1])
+
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        for attr in self.attributes:
+            setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
+        self.dropout = nn.Dropout(0.3)
+        self.rcnn = nn.LSTM(self.in_features, self.in_features, 1)
+        self.linear_x1 = nn.Linear(256, self.in_features)
+
+    def forward(self, x):
+        x1, x2, x3 = x
+        x1 = self.linear_x1(self.global_pool(x1).view(x1.size(0), -1))
+        x2 = self.global_pool(x2).view(x2.size(0), -1)
+        x3 = self.global_pool(x3).view(x3.size(0), -1)
+
+        batch_size = x1.size(0)
+        h0 = torch.zeros(1, batch_size, self.in_features).cuda()
+        c0 = torch.zeros(1, batch_size, self.in_features).cuda()
+        x = torch.stack((x1, x2, x3), dim=0)  # (3, 60, 512)
+        output, (hn, cn) = self.rcnn(x, (h0, c0))
+        x = hn[1, :, :]
+        # temp = 0
+        # end = -(self.length - 1)
+        # for l in range(self.length):
+        #     # end = -(self.length * self.margin) + 1 + l*self.margin
+        #     if end >= 0:
+        #         temp = temp + x[:, l::self.step]
+        #     else:
+        #         temp = temp + x[:, l:end:self.step]
+        #     end += 1
+        # x = temp
+        results = []
+        for attr in self.attributes:
+            name = attr.name
+            y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
+            y = self.relu(y)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+        return results
