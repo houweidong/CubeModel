@@ -48,6 +48,18 @@ def get_inference_transform_person(input):
     # bbox = [xmin, ymin, w, h]
     return img.crop((bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3]))
 
+def get_inference_transform_person_lr(input):
+    img, bbox = input
+
+    # bbox = [xmin, ymin, xmax, ymax]
+    result = img.crop((bbox[0], bbox[1], bbox[2], bbox[3]))
+    # if result:
+    #     print(bbox)
+    #     return result
+    # else:
+    #     print('NOne')
+    #     print(bbox)
+    return result
 
 def square_no_elastic(img):
     w, h = img.size

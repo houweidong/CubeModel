@@ -8,7 +8,7 @@ from data.read_wider import WiderAttr
 from data.read_berkeley import BerkeleyAttr
 from data.read_newdata import NewdataAttr
 from data.transforms import ToMaskedTargetTensor, ToMaskedTargetTensorPaper, \
-    get_inference_transform_person, square_no_elastic
+    get_inference_transform_person, get_inference_transform_person_lr, square_no_elastic
 
 
 # Helper class for combining multiple (possibly heterogeneous) datasets into one pseudo dataset
@@ -83,7 +83,7 @@ def _get_widerattr(opt, mean, std, attrs):
 
 def _get_newdata(opt, mean, std, attrs):
     root = os.path.join(opt.root_path, 'new')
-    cropping_transform = get_inference_transform_person
+    cropping_transform = get_inference_transform_person_lr
     train_img_transform = Compose(
         [square_no_elastic, RandomHorizontalFlip(), RandomRotation(10, expand=True),
          # [RandomHorizontalFlip(), RandomRotation(10, expand=True),
