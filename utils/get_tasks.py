@@ -34,7 +34,11 @@ def get_tasks(opt):
     names = []
     for attr in attributes:
         assert isinstance(attr, Attribute)
-        names.append(attr.name)
+        if attr.branch_num == 1:
+            names.append(attr.name)
+        else:
+            for i in range(attr.branch_num):
+                names.append(attr.name + str(i))
         if attr.rec_trainable:
             names.append(attr.name + '/recognizable')
 
