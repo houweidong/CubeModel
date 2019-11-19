@@ -1,5 +1,6 @@
 import argparse
 from data.attributes import WiderAttributes as WdAt
+from data.attributes import NewAttributes as NwAt
 import pretrainedmodels
 import os
 import datetime
@@ -22,7 +23,7 @@ def parse_opts():
         '--dataset',
         default='Wider',
         type=str,
-        choices=['Wider', 'Berkeley'],
+        choices=['Wider', 'Berkeley', 'New'],
         help='(Wider). Multiple datasets can be specified using comma as separator')
     # only support wider dataset now
     parser.add_argument(
@@ -148,7 +149,7 @@ def parse_opts():
     parser.add_argument(
         '-sa',
         '--specified_attrs',
-        default=[*WdAt.names()],
+        default=[*NwAt.names()],
         type=str,
         nargs='+',
         choices=[*WdAt.names()],
@@ -172,7 +173,7 @@ def parse_opts():
         default='Custom',
         type=str,
         choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom',
-                 'TwoLevel', 'ThreeLevel', 'TwoLevelAuto', 'ThreeLevelRNN'],
+                 'TwoLevel', 'ThreeLevel', 'TwoLevelAuto', 'ThreeLevelRNN', 'NoAttentionMuti'],
         help='Whether to add attention mechanism of each attribute'
              'ScOd: second-order pooling'
              'OvFc: all over you face'

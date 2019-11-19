@@ -1,5 +1,6 @@
 from data.attributes import WiderAttributes as WdAt
 from data.attributes import BerkeleyAttributes as BkAt
+from data.attributes import NewAttributes as NwAt
 from data.attributes import Attribute
 from collections import OrderedDict
 
@@ -17,6 +18,8 @@ def get_tasks(opt):
             attrs_ds = WdAt.list_attributes(opt)
         elif ds == 'Berkeley':
             attrs_ds = BkAt.list_attributes(opt)
+        elif ds == 'New':
+            attrs_ds = NwAt.list_attributes(opt)
         else:
             raise Exception("Not supported dataset {}".format(ds))
 

@@ -1,7 +1,7 @@
 import pretrainedmodels
 # from torchvision.models import vgg
 import torch.nn as nn
-from data.attributes import Attribute
+from data.attributes import Attribute, AttributeType
 import torch
 from model import detnet, fpn18
 from model import vgg
@@ -669,6 +669,142 @@ class ThreeLevelRNN(Base):
         for attr in self.attributes:
             name = attr.name
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
+            y = self.relu(y)
+            cls = getattr(self, 'fc_' + name + '_classifier')(y)
+            results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+        return results
+
+
+class BaseWithMulti(nn.Module):
+    def __init__(self, attributes, in_features, out_features, img_size):
+        for attr in attributes:
+            assert isinstance(attr, Attribute)
+        super(BaseWithMulti, self).__init__()
+        self.img_size = img_size
+        # self.map_size = int(self.img_size / 224 * 7)
+        self.in_features = in_features
+        self.out_features = out_features
+        self.attributes = attributes
+        self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
+
+        for attr in self.attributes:
+            name = attr.name
+            if attr.branch_num == 1:
+                setattr(self, 'fc_' + name + '_classifier', nn.Linear(512, 1))
+            else:
+                for i in range(attr.branch_num):
+                    setattr(self, 'fc_' + name + '_classifier' + str(i), nn.Linear(512, 1))
+            # Also define a branch for classifying recognizability if necessary
+            if attr.rec_trainable:
+                setattr(self, 'fc_' + name + '_recognizable', nn.Linear(512, 1))
+            # setattr(self, 'fc_' + name + '_1', nn.Linear(self.in_features, 512))
+
+    def forward(self, *parameters):
+        r"""Defines the computation performed at every call.
+
+        Should be overridden by all subclasses.
+
+        .. note::
+            Although the recipe for forward pass needs to be defined within
+            this function, one should call the :class:`Module` instance afterwards
+            instead of this since the former takes care of running the
+            registered hooks while the latter silently ignores them.
+        """
+        raise NotImplementedError
+
+
+class NoAttentionMuti(BaseWithMulti):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(NoAttentionMuti, self).__init__(attributes, in_features, out_features, norm_size[1])
+
+        # self.global_pool = nn.AvgPool2d((self.map_size, self.map_size), stride=1)
+
+        # step or margin, one of them have to be 1
+
+        # self.length = 7
+        # self.step = 5   # distance between two groups
+        #
+        # self.in_features = (512 - (self.length - 1)) // self.step
+        # self.in_features = self.in_features + 1 if (512 - (self.length - 1)) % self.step else self.in_features
+
+        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        for attr in self.attributes:
+            setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        x = self.dropout(self.global_pool(x).view(x.size(0), -1))
+        # temp = 0
+        # end = -(self.length - 1)
+        # for l in range(self.length):
+        #     # end = -(self.length * self.margin) + 1 + l*self.margin
+        #     if end >= 0:
+        #         temp = temp + x[:, l::self.step]
+        #     else:
+        #         temp = temp + x[:, l:end:self.step]
+        #     end += 1
+        # x = temp
+        results = []
+        for attr in self.attributes:
+            name = attr.name
+            y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
+            y = self.relu(y)
+            if attr.branch_num == 1:
+                cls = getattr(self, 'fc_' + name + '_classifier')(y)
+                results.append(cls)
+            else:
+                for i in range(attr.branch_num):
+                    cls = getattr(self, 'fc_' + name + '_classifier' + str(i))(y)
+                    results.append(cls)
+            if attr.rec_trainable:  # Also return the recognizable branch if necessary
+                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+                results.append(recognizable)
+        return results
+
+
+class PrTp(NoAttention):
+    def __init__(self, attributes, in_features, out_features, norm_size):
+        super(PrTp, self).__init__(attributes, in_features, out_features, norm_size)
+        self.norm = norm_size[0]
+        # Also define attention layer for attribute
+        for attr in self.attributes:
+            name = attr.name
+            # 10 prototype just for test
+            setattr(self, 'attention_' + name + '_cv1', nn.Conv2d(self.in_features, 512, (3, 3), padding=1))
+            setattr(self, 'attention_' + name + '_cv2', nn.Conv2d(512, 512, (3, 3), padding=1))
+            setattr(self, 'attention_' + name + '_cv3', nn.Conv2d(512, 10, (1, 1)))
+
+            # setattr(self, 'prototype_' + name + '_coe1', nn.AdaptiveAvgPool2d(1))
+            setattr(self, 'prototype_' + name + '_coe1', nn.Linear(self.in_features, int(self.in_features / 16)))
+            setattr(self, 'prototype_' + name + '_coe2', nn.Linear(int(self.in_features / 16), 10))
+        self.tanh = torch.nn.Tanh()
+
+    def forward(self, x):
+        results = []
+        for attr in self.attributes:
+            name = attr.name
+            cv1_rl = self.relu(getattr(self, 'attention_' + name + '_cv1')(x))
+            cv2_rl = self.relu(getattr(self, 'attention_' + name + '_cv2')(cv1_rl))
+            cv3_rl = self.relu(getattr(self, 'attention_' + name + '_cv3')(cv2_rl))
+            cv3_rl = self.sigmoid(cv3_rl) if self.norm else cv3_rl
+            # cv3_rl = self.relu(cv3_rl) if self.norm else cv3_rl
+
+            # compute prototype coefficient
+            # prototype_coe1 = self.relu(getattr(self, 'prototype_' + name + '_coe1')(
+            # self.global_pool(x).view(x.size(0), -1)))
+            # prototype_coe2 = self.sigmoid(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
+            prototype_coe1 = getattr(self, 'prototype_' + name + '_coe1')(self.global_pool(x).view(x.size(0), -1))
+            prototype_coe2 = self.tanh(getattr(self, 'prototype_' + name + '_coe2')(prototype_coe1))
+
+            # multi prototype with attention map to produce new attention map
+            new_attention = (prototype_coe2[..., None, None] * cv3_rl).sum(1, keepdim=True)
+            y = new_attention * x
+            y = getattr(self, 'global_pool')(y).view(y.size(0), -1)
+            y = getattr(self, 'fc_' + name + '_1')(y)
             y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
             results.append(cls)

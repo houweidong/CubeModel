@@ -50,7 +50,7 @@ def binary_cn(pred, target):
 # to solve the imbalance problem
 def ohem_loss(pred, target, ratio=3, reverse=False):
     assert pred.size()[1] == 2 or pred.size()[1] == 1  # Only support binary case
-
+    # print(target)
     if not reverse:
         pos_mask = target.byte()
         neg_mask = 1 - pos_mask
@@ -61,6 +61,7 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
     n_pos = int(torch.sum(pos_mask))
     n_neg = int(torch.sum(neg_mask))
     if n_neg > 0 and n_neg > n_pos * ratio:
+
         n_selected = max(n_pos * ratio, 1)
 
         ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
@@ -73,10 +74,10 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
         # Get mask of selected negative samples on original mask tensor
         selected_neg_mask = torch.zeros(int(n_neg), device='cuda')
         selected_neg_mask.scatter_(0, index, 1)  # a [n_neg] size mask
+        # print(n_pos, n_neg, neg_mask.size())
         neg_index = torch.masked_select(torch.arange(n_pos + n_neg, dtype=torch.long, device='cuda', requires_grad=False),
                                         neg_mask)  # Mapping from [n_neg] to [n_pos+n_neg] mask
         neg_mask.scatter_(0, neg_index, selected_neg_mask.byte())
-
         # Return average loss of all selected samples
         mask = neg_mask + pos_mask
         masked_loss = torch.masked_select(ce_loss, mask)

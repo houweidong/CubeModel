@@ -72,8 +72,9 @@ class ToMaskedTargetTensor(object):
         target = []
         dummy_val = -10  # Placeholder value for unavailable attribute, so that each sample has the same length
         for i, attr in enumerate(self.attrs):
-            if attr.key in sample:
-                recognizability = sample['recognizability'][attr.key]
+            # if attr.key in sample:
+            recognizability = sample['recognizability'][attr.key]
+            if attr.branch_num == 1:
                 # Class label is valid(available) only when the attribute of this sample is recognizable
                 if recognizability == 1:
                     cls_available = 1
@@ -82,22 +83,41 @@ class ToMaskedTargetTensor(object):
                     cls_available = 0
                     val = dummy_val
                 rec_available = 1  # Recognizability is available as long as the sample contains the attribute
+                # Use a mask tensor to indicate which attribute is available on each sample
+                mask.append(torch.tensor([cls_available], dtype=torch.uint8, requires_grad=False))
+                target.append(torch.tensor([val], dtype=self._tensor_types[attr.data_type], requires_grad=False))
             else:
-                cls_available = 0
-                val = dummy_val
-                rec_available = 0
-                if attr.rec_trainable:
-                    recognizability = dummy_val
+                for j in range(attr.branch_num):
+                    # Class label is valid(available) only when the attribute of this sample is recognizable
+                    cls_available = 1
+                    if recognizability == 1:
+                        if j == sample[attr.key]:
+                            val = 1
+                        else:
+                            val = 0
+                    else:
+                        cls_available = 0
+                        val = dummy_val
+                    rec_available = 1  # Recognizability is available as long as the sample contains the attribute
+                    # Use a mask tensor to indicate which attribute is available on each sample
+                    mask.append(torch.tensor([cls_available], dtype=torch.uint8, requires_grad=False))
+                    target.append(torch.tensor([val], dtype=self._tensor_types[attr.data_type], requires_grad=False))
+                    # if val == 2:
+                    #     a = 5
 
-            # Use a mask tensor to indicate which attribute is available on each sample
-            mask.append(torch.tensor([cls_available], dtype=torch.uint8, requires_grad=False))
-            target.append(torch.tensor([val], dtype=self._tensor_types[attr.data_type], requires_grad=False))
+            # else:
+            #     cls_available = 0
+            #     val = dummy_val
+            #     rec_available = 0
+            #     if attr.rec_trainable:
+            #         recognizability = dummy_val
+
             if attr.rec_trainable:
                 # When one attribute's recognizability is trainable, we always return a tuple,
                 # no matter this sample contains such info or not
                 mask.append(torch.tensor([rec_available], dtype=torch.uint8, requires_grad=False))
                 target.append(torch.tensor([recognizability], dtype=torch.long, requires_grad=False))
-
+        # print(target)
         return target, mask
 
 

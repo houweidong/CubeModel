@@ -6,7 +6,8 @@ from torch.utils.data import DataLoader
 import torch.utils.data as data
 from data.read_wider import WiderAttr
 from data.read_berkeley import BerkeleyAttr
-from data.transforms import ToMaskedTargetTensor, ToMaskedTargetTensorPaper,\
+from data.read_newdata import NewdataAttr
+from data.transforms import ToMaskedTargetTensor, ToMaskedTargetTensorPaper, \
     get_inference_transform_person, square_no_elastic
 
 
@@ -80,6 +81,29 @@ def _get_widerattr(opt, mean, std, attrs):
     return train_data, val_data
 
 
+def _get_newdata(opt, mean, std, attrs):
+    root = os.path.join(opt.root_path, 'new')
+    cropping_transform = get_inference_transform_person
+    train_img_transform = Compose(
+        [square_no_elastic, RandomHorizontalFlip(), RandomRotation(10, expand=True),
+         # [RandomHorizontalFlip(), RandomRotation(10, expand=True),
+         Resize((opt.person_size, opt.person_size)),
+         ToTensor(), Normalize(mean, std)])
+    # [CenterCrop(178), Resize((256, 256)), RandomCrop(224), RandomHorizontalFlip(), ToTensor(), Normalize(mean, std)])
+    val_img_transform = Compose(
+        [square_no_elastic,
+         Resize((opt.person_size, opt.person_size)),
+         ToTensor(), Normalize(mean, std)])
+    target_transform = ToMaskedTargetTensor(attrs)
+
+    train_data = NewdataAttr(attrs, root, 'train', opt.mode, cropping_transform, img_transform=train_img_transform,
+                             target_transform=target_transform)
+    val_data = NewdataAttr(attrs, root, 'test', opt.mode, cropping_transform,
+                           img_transform=val_img_transform, target_transform=target_transform)
+
+    return train_data, val_data
+
+
 def _get_berkeley(opt, mean, std, attrs):
     root = os.path.join(opt.root_path, 'attributes_dataset')
     cropping_transform = get_inference_transform_person
@@ -100,11 +124,10 @@ def _get_berkeley(opt, mean, std, attrs):
     return train_data, val_data
 
 
-_dataset_getters = {'Wider': _get_widerattr, 'Berkeley': _get_berkeley}
+_dataset_getters = {'Wider': _get_widerattr, 'Berkeley': _get_berkeley, 'New': _get_newdata}
 
 
 def get_data(opt, available_attrs, mean, std):
-
     names = opt.dataset.split(",")
 
     # Get and collect each dataset which will be combined later
