@@ -1,6 +1,8 @@
 import torch
 import torch.nn.functional as F
 import math
+from functools import partial
+from data.attributes import NewAttributes
 
 
 def exp_loss(pred, alpha=-23, beta=-18):
@@ -43,8 +45,8 @@ def focal_loss(pred, target, gamma=2, alpha=None, size_average=True):
         return loss.sum()
 
 
-def binary_cn(pred, target):
-    return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float())
+def binary_cn(pred, target, weight=None):
+    return F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), weight=weight)
 
 
 # to solve the imbalance problem
@@ -194,19 +196,49 @@ class Ohem(object):
 def reverse_ohem_loss(pred, target, ratio=3): return ohem_loss(pred, target, ratio, reverse=True)
 
 
-def get_categorial_loss(loss):
+def get_categorial_loss(attrs, loss):
     if loss == 'cross_entropy':
+        loss_fns = {}
+        for attr in attrs:
+            loss_fns[attr] = []
+            loss_fns[attr].append(binary_cn)
+            if attr.rec_trainable:
+                loss_fns[attr].append(binary_cn)
+        return loss_fns
+    elif loss == 'cross_entropy_weight':
         # return F.cross_entropy, F.cross_entropy
-        return binary_cn, binary_cn
+        loss_fns = {}
+        weights = get_categorial_weight()
+        for attr in attrs:
+            loss_fns[attr] = []
+            loss_fns[attr].append(partial(binary_cn, weight=weights[attr][0]))
+            if attr.rec_trainable:
+                loss_fns[attr].append(partial(binary_cn, weight=weights[attr][1]))
+
+        return loss_fns
     elif loss == 'ohem':
-        return Ohem, ohem_loss
+        loss_fns = {}
+        for attr in attrs:
+            loss_fns[attr] = []
+            loss_fns[attr].append(ohem_loss)
+            if attr.rec_trainable:
+                loss_fns[attr].append(reverse_ohem_loss)
+        return loss_fns
+        # return Ohem, ohem_loss
     elif loss == 'focal':
-        return focal_loss, focal_loss
+        loss_fns = {}
+        for attr in attrs:
+            loss_fns[attr] = []
+            loss_fns[attr].append(focal_loss)
+            if attr.rec_trainable:
+                loss_fns[attr].append(focal_loss)
+        return loss_fns
+        # return focal_loss, focal_loss
     else:
         raise Exception("Loss '{}' is not supported".format(loss))
 
 
-def get_categorial_scale(loss):
+def get_categorial_scale():
 
     scales = [(10263+2032)/16436, (19092+3243)/6396, (26284+991)/1456, (21674+422)/6635, (20991+1947)/5793,
                 (13339+1879)/13513, (26200+273)/2258, (14120+10369)/4242, (18731+7585)/2415, (8168+10010)/10553,
@@ -225,6 +257,19 @@ def get_categorial_scale(loss):
         result.append(scale)
 
     return result, pos_num
+
+
+def get_categorial_weight():
+
+    weight = {}
+    weight[NewAttributes.yifujinshen_yesno] = [(25187) / 6650, 997 / (6650 + 25187)]
+    weight[NewAttributes.kuzijinshen_yesno] = [(13645) / 7298, 11891 / (7298 + 13645)]
+    weight[NewAttributes.maozi_yesno] = [(20080) / 3515, 9239 / (3515 + 20080)]
+    weight[NewAttributes.gaolingdangbozi_yesno] = [(21930) / 8509, 2395 / (8509 + 21930)]
+    weight[NewAttributes.gaofaji_yesno] = [(11106) / 9046, 12682 / (11106 + 9046)]
+
+    # just for classification for two class
+    return weight
 
 
 # TODO Add coefficient to losses

@@ -52,7 +52,6 @@ class NewdataAttr(Dataset):
                 for line in lines:
                     # if line.startswith('img10.360buyimg.com_n1_jfs_t1_33182_1_6378_140673_5cbdf607E79137fee_6846c2e9c4f8d7f1.jpg'):
                     #     a = 5
-
                     line_list = line.split()
                     if line_list:  # may have []
                         img_name = line_list[0]
@@ -60,6 +59,9 @@ class NewdataAttr(Dataset):
                         for i in range(1, len(line_list), 16):
                             label = line_list[i:i+12]
                             box = list(map(lambda x: float(x), line_list[i+12:i+16]))
+                            # there have 9 pictures' boxes have problems, so need to filter them
+                            if box[2] > box[0] or box[3] > box[1]:
+                                continue
                             sample = dict(img=img_path, bbox=box)
                             recognizability = dict()
                             for attr, l in zip(self._attrs, label):
