@@ -94,7 +94,7 @@ def _get_newdata(opt, mean, std, attrs):
         [square_no_elastic,
          Resize((opt.person_size, opt.person_size)),
          ToTensor(), Normalize(mean, std)])
-    target_transform = ToMaskedTargetTensor(attrs)
+    target_transform = ToMaskedTargetTensor(attrs, opt.label_smooth)
 
     train_data = NewdataAttr(attrs, root, 'train', opt.mode, cropping_transform, img_transform=train_img_transform,
                              target_transform=target_transform)

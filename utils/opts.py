@@ -170,6 +170,12 @@ def parse_opts():
         choices=[*WdAt.names()] + [*NwAt.names()] + [*BkAt.names()],
         help='Currently only support Wider attr dataset')
     parser.add_argument(
+        '-ls',
+        '--label_smooth',
+        action='store_true',
+        help='Whether to open the label smooth'
+    )
+    parser.add_argument(
         '-at',
         '--attention',
         default='Custom',

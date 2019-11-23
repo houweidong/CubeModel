@@ -12,13 +12,15 @@ def exp_loss(pred, alpha=-23, beta=-18):
 
 # alpha now only support for binary classification
 # TODO Change it to class so that gamma can also be learned
-def focal_loss(pred, target, gamma=2, alpha=None, size_average=True):
+def focal_loss(pred, target_float, gamma=2, alpha=None, size_average=True):
+    target = torch.round(target_float).long()
     if isinstance(alpha, (float, int)):
         alpha = torch.Tensor([alpha, 1 - alpha])
     if isinstance(alpha, list):
         alpha = torch.Tensor(alpha)
 
     target = target.view(-1, 1)
+    target_float = target_float.view(-1, 1)
     # logpt = F.log_softmax(pred, 1)
     # logpt = logpt.gather(1, target)
     # pt = logpt.exp()
@@ -30,15 +32,29 @@ def focal_loss(pred, target, gamma=2, alpha=None, size_average=True):
     logpt = torch.log(torch.cat((pt_1m, pt), dim=1)).gather(1, target)
     logpt = logpt.view(-1)
 
-    pt = torch.cat((pt_1m, pt), dim=1).gather(1, target).view(-1)
+    pt_final = torch.cat((pt_1m, pt), dim=1).gather(1, target).view(-1)
 
     if alpha is not None:
         if alpha.type() != pred.data.type():
             alpha = alpha.type_as(pred.data)
         at = alpha.gather(0, target.data.view(-1))
         logpt = logpt * at
+    loss1_coe = torch.cat((1-target_float, target_float), dim=1).gather(1, target)
+    loss1 = (-1 * (1 - pt_final) ** gamma * logpt) * loss1_coe
 
-    loss = -1 * (1 - pt) ** gamma * logpt
+    logpt1 = torch.log(torch.cat((pt, pt_1m), dim=1)).gather(1, target)
+    logpt1 = logpt1.view(-1)
+
+    pt_final = torch.cat((pt, pt_1m), dim=1).gather(1, target).view(-1)
+
+    if alpha is not None:
+        if alpha.type() != pred.data.type():
+            alpha = alpha.type_as(pred.data)
+        at = alpha.gather(0, target.data.view(-1))
+        logpt1 = logpt1 * at
+    loss2 = (-1 * (1 - pt_final) ** gamma * logpt1) * (1 - loss1_coe)
+    # loss2_coe = 1 - loss1_coe
+    loss = loss1 + loss2
     if size_average:
         return loss.mean()
     else:
@@ -50,8 +66,9 @@ def binary_cn(pred, target, weight=None):
 
 
 # to solve the imbalance problem
-def ohem_loss(pred, target, ratio=3, reverse=False):
+def ohem_loss(pred, target_float, ratio=3, reverse=False):
     assert pred.size()[1] == 2 or pred.size()[1] == 1  # Only support binary case
+    target = torch.round(target_float)
     # print(target)
     if not reverse:
         pos_mask = target.byte()
@@ -66,7 +83,7 @@ def ohem_loss(pred, target, ratio=3, reverse=False):
 
         n_selected = max(n_pos * ratio, 1)
 
-        ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target.float(), reduction='none')
+        ce_loss = F.binary_cross_entropy_with_logits(pred.squeeze(1), target_float, reduction='none')
         # ce_loss = F.cross_entropy(pred, target, reduction='none')
 
         # generate top k neg ce loss mask
