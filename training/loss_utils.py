@@ -211,9 +211,9 @@ def get_categorial_loss(attrs, loss):
         weights = get_categorial_weight()
         for attr in attrs:
             loss_fns[attr] = []
-            loss_fns[attr].append(partial(binary_cn, weight=weights[attr][0]))
+            loss_fns[attr].append(partial(binary_cn, weight=weights[attr.key][0]))
             if attr.rec_trainable:
-                loss_fns[attr].append(partial(binary_cn, weight=weights[attr][1]))
+                loss_fns[attr].append(partial(binary_cn, weight=weights[attr.key][1]))
 
         return loss_fns
     elif loss == 'ohem':

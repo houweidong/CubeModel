@@ -12,6 +12,7 @@ class NewdataAttr(Dataset):
         for attr in attributes:
             assert isinstance(attr, Attribute)
         self._attrs = attributes
+        self._attrs_values = [attr.key.value for attr in self._attrs]
         # mode is in ["paper", "branch"]
         self.mode = mode
         self.data = self._make_dataset(root, subset)
@@ -20,6 +21,7 @@ class NewdataAttr(Dataset):
         self.img_transform = img_transform
         self.target_transform = target_transform
         self.img_loader = opencv_loader
+
 
     def _make_dataset(self, root, subset):
         assert subset in ['train', 'test']
@@ -60,11 +62,14 @@ class NewdataAttr(Dataset):
                             label = line_list[i:i+12]
                             box = list(map(lambda x: float(x), line_list[i+12:i+16]))
                             # there have 9 pictures' boxes have problems, so need to filter them
-                            if box[2] > box[0] or box[3] > box[1]:
+                            if box[2] < box[0] or box[3] < box[1]:
                                 continue
                             sample = dict(img=img_path, bbox=box)
                             recognizability = dict()
+
+                            label = [label[ii] for ii in range(12) if ii in self._attrs_values]
                             for attr, l in zip(self._attrs, label):
+                                # for the dadunan
                                 if attr.branch_num == 1 and int(l) == 2:
                                     attr = attr.key
                                     recognizability[attr] = 1

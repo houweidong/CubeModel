@@ -29,7 +29,7 @@ class WiderAttributes(Enum):
 
     @staticmethod
     def list_attributes(opt):
-        out_rec = opt.specified_recognizable_attrs if opt.output_recognizable else []
+        out_rec = opt.specified_recognizable_attrs
 
         def fuc(ar):
             if str(ar) in out_rec:
@@ -64,7 +64,7 @@ class BerkeleyAttributes(Enum):
 
     @staticmethod
     def list_attributes(opt):
-        out_rec = opt.specified_recognizable_attrs if opt.output_recognizable else []
+        out_rec = opt.specified_recognizable_attrs
 
         def fuc(ar):
             if str(ar) in out_rec:
@@ -141,7 +141,7 @@ class NewAttributes(Enum):
 
     @staticmethod
     def list_attributes(opt):
-        out_rec = opt.specified_recognizable_attrs if opt.output_recognizable else []
+        out_rec = opt.specified_recognizable_attrs
 
         def fuc(ar):
             if str(ar) in out_rec:

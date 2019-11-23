@@ -101,7 +101,7 @@ class Base(nn.Module):
             setattr(self, 'fc_' + name + '_classifier', nn.Linear(512, 1))
             # Also define a branch for classifying recognizability if necessary
             if attr.rec_trainable:
-                setattr(self, 'fc_' + name + '_recognizable', nn.Linear(512, 2))
+                setattr(self, 'fc_' + name + '_recognizable', nn.Linear(512, 1))
             # setattr(self, 'fc_' + name + '_1', nn.Linear(self.in_features, 512))
 
     def forward(self, *parameters):

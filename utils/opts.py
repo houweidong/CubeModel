@@ -1,6 +1,7 @@
 import argparse
 from data.attributes import WiderAttributes as WdAt
 from data.attributes import NewAttributes as NwAt
+from data.attributes import BerkeleyAttributes as BkAt
 import pretrainedmodels
 import os
 import datetime
@@ -144,15 +145,15 @@ def parse_opts():
         '--categorical_loss',
         default='ohem',
         type=str,
-        help='ohem | cross_entropy | focal'
+        help='ohem | cross_entropy | focal | cross_entropy_weight'
     )
     parser.add_argument(
         '-sa',
         '--specified_attrs',
-        default=[*NwAt.names()],
+        default=[],
         type=str,
         nargs='+',
-        choices=[*WdAt.names()],
+        choices=[*WdAt.names()] + [*NwAt.names()] + [*BkAt.names()],
         help='Currently only support Wider attr dataset')
     parser.add_argument(
         '-or',
@@ -162,10 +163,11 @@ def parse_opts():
     parser.add_argument(
         '-sra',
         '--specified_recognizable_attrs',
-        default=[*WdAt.names()],
+        default=[],
+        # default=[*WdAt.names()],
         type=str,
         nargs='+',
-        choices=[*WdAt.names()],
+        choices=[*WdAt.names()] + [*NwAt.names()] + [*BkAt.names()],
         help='Currently only support Wider attr dataset')
     parser.add_argument(
         '-at',
@@ -216,5 +218,29 @@ def parse_opts():
             args.result_path, datetime.datetime.now().strftime('%Y_%m_%d_%H_%M'))
     if not os.path.exists(args.log_dir):
         os.makedirs(args.log_dir)
-
+    if not args.specified_attrs:
+        if args.dataset == 'Wider':
+            args.specified_attrs = WdAt.names()
+        elif args.dataset == 'New':
+            args.specified_attrs = NwAt.names()
+        elif args.dataset == 'Berkeley':
+            args.specified_attrs = BkAt.names()
+        else:
+            # TODO
+            pass
+    # else:
+    #     args.specified_attrs = args.specified_attrs.strip().split()
+    if args.output_recognizable:
+        if not args.specified_recognizable_attrs:
+            if args.dataset == 'Wider':
+                args.specified_recognizable_attrs = WdAt.names()
+            elif args.dataset == 'New':
+                args.specified_recognizable_attrs = NwAt.names()
+            elif args.dataset == 'Berkeley':
+                args.specified_recognizable_attrs = BkAt.names()
+            else:
+                # TODO
+                pass
+        # else:
+        #     args.specified_recognizable_attrs = args.specified_recognizable_attrs.strip().split()
     return args
