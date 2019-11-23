@@ -244,36 +244,37 @@ def get_categorial_loss(attrs, loss):
         # return Ohem, ohem_loss
     elif loss == 'focal':
         loss_fns = {}
+        weights = get_categorial_weight()
         for attr in attrs:
             loss_fns[attr] = []
-            loss_fns[attr].append(focal_loss)
+            loss_fns[attr].append(partial(focal_loss, alpha=weights[attr.key][0] / (weights[attr.key][0] + 1)))
             if attr.rec_trainable:
-                loss_fns[attr].append(focal_loss)
+                loss_fns[attr].append(partial(focal_loss, alpha=weights[attr.key][1] / (weights[attr.key][1] + 1)))
         return loss_fns
         # return focal_loss, focal_loss
     else:
         raise Exception("Loss '{}' is not supported".format(loss))
 
 
-def get_categorial_scale():
-
-    scales = [(10263+2032)/16436, (19092+3243)/6396, (26284+991)/1456, (21674+422)/6635, (20991+1947)/5793,
-                (13339+1879)/13513, (26200+273)/2258, (14120+10369)/4242, (18731+7585)/2415, (8168+10010)/10553,
-                (18275+7571)/2885, (26622+1101)/1008, (19045+1252)/8434, (26507+229)/1995]
-
-    pos_num = [16436, 6396, 1456, 6635, 5793, 13513, 2258, 4242, 2415, 10553, 2885, 1008, 8434, 1995]
-    result = []
-    for scale in scales:
-        # result.append(1/(1+scale))
-        # if 0 <= scale < 5:
-        #     result.append(0.5)
-        # elif 5 <= scale < 10:
-        #     result.append(1/3)
-        # elif 10 <= scale:
-        #     result.append(0.25)
-        result.append(scale)
-
-    return result, pos_num
+# def get_categorial_scale():
+#
+#     scales = [(10263+2032)/16436, (19092+3243)/6396, (26284+991)/1456, (21674+422)/6635, (20991+1947)/5793,
+#                 (13339+1879)/13513, (26200+273)/2258, (14120+10369)/4242, (18731+7585)/2415, (8168+10010)/10553,
+#                 (18275+7571)/2885, (26622+1101)/1008, (19045+1252)/8434, (26507+229)/1995]
+#
+#     pos_num = [16436, 6396, 1456, 6635, 5793, 13513, 2258, 4242, 2415, 10553, 2885, 1008, 8434, 1995]
+#     result = []
+#     for scale in scales:
+#         # result.append(1/(1+scale))
+#         # if 0 <= scale < 5:
+#         #     result.append(0.5)
+#         # elif 5 <= scale < 10:
+#         #     result.append(1/3)
+#         # elif 10 <= scale:
+#         #     result.append(0.25)
+#         result.append(scale)
+#
+#     return result, pos_num
 
 
 def get_categorial_weight():

@@ -1,7 +1,6 @@
 from ignite.metrics import Loss
 from ignite.contrib.metrics import AveragePrecision
-from training.loss_utils import get_categorial_loss, reverse_ohem_loss, exp_loss,\
-    get_categorial_scale, get_categorial_weight
+from training.loss_utils import get_categorial_loss
 from data.attributes import AttributeType
 # import torch.nn.functional as F
 import torch
@@ -11,12 +10,12 @@ from training.metric_utils import MyAccuracy
 
 def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'):
 
-    scales, pos_nums = get_categorial_scale()
+    # scales, pos_nums = get_categorial_scale()
     loss_fns = get_categorial_loss(attrs, categorical_loss)
     losses, metrics = [], []
     # cam_losses = []
 
-    for attr, scale, pos_num in zip(attrs, scales, pos_nums):
+    for attr in attrs:
         # For attribute classification
         # if categorical_loss in ['ohem', 'focal']:
         #     losses.append(partial(loss_fn, state=True, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
