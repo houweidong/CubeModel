@@ -180,11 +180,10 @@ class OvFc(NoAttention):
                     cv3_sm = self.softmax(cv3_rl.view(batch, -1))
                     # print(cv3_sm)
                     cv3_rl = cv3_sm * attr.at_coe
-                    print(cv3_rl[0, 14*7:14*8])
+                    # print(cv3_rl[0, 14*7:14*8])
                     cv3_rl = cv3_rl.view(batch, 1, resolu, resolu)
-            if name == 'yifujinshen_yesno':
-
-                print(cv3_rl[0, 0, :, 3:12])
+            if not self.at:
+                cv3_rl = self.sigmoid(cv3_rl)
             y = cv3_rl * x
             y = self.dropout(getattr(self, 'global_pool')(y).view(batch, -1))
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(y))

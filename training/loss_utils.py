@@ -241,7 +241,7 @@ def multitask_loss(output, label, loss_fns, n_tasks_class, at_coe):
     # for j in range(n_tasks_remain):
     #     # TODO deal with the mask condition
     #     total_loss += loss_fns[j + n_tasks](output[j + n_tasks])
-    print(total_loss_at, at_coe)
+    # print(total_loss_at, at_coe)
     return total_loss_class + at_coe * total_loss_at
 
 # class Ohem(object):

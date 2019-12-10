@@ -1,10 +1,72 @@
 import torch
 import torch.nn.functional as F
 from ignite.metrics import Metric, Loss
-from ignite.contrib.metrics import AveragePrecision
 from utils.table import TableForPrint
 from ignite.exceptions import NotComputableError
+from ignite.metrics import EpochMetric
+from functools import partial
+import warnings
 
+def average_precision_compute_fn(y_preds, y_targets, activation=None):
+    try:
+        from sklearn.metrics import average_precision_score
+    except ImportError:
+        raise RuntimeError("This contrib module requires sklearn to be installed")
+
+    y_pred = y_preds.numpy()
+    y_true = y_targets.numpy()
+    return average_precision_score(y_true, y_pred)
+
+
+class MyAveragePrecision(EpochMetric):
+    """Computes Average Precision accumulating predictions and the ground-truth during an epoch
+    and applying `sklearn.metrics.average_precision_score <http://scikit-learn.org/stable/modules/generated/
+    sklearn.metrics.average_precision_score.html#sklearn.metrics.average_precision_score>`_
+
+    Args:
+        activation (Callable, optional): optional function to apply on prediction tensors,
+            e.g. `activation=torch.sigmoid` to transform logits.
+        output_transform (callable, optional): a callable that is used to transform the
+            :class:`ignite.engine.Engine`'s `process_function`'s output into the
+            form expected by the metric. This can be useful if, for example, you have a multi-output model and
+            you want to compute the metric with respect to one of the outputs.
+
+    """
+    def __init__(self, activation=None, output_transform=lambda x: x):
+        super(MyAveragePrecision, self).__init__(partial(average_precision_compute_fn, activation=activation),
+                                               output_transform=output_transform)
+    def update(self, output):
+        y_pred, y = output
+        y_pred, y = self._output_transform(y_pred, y)
+        if y_pred.ndimension() not in (1, 2):
+            raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, )")
+
+        if y.ndimension() not in (1, 2):
+            raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, )")
+
+        if y.ndimension() == 2:
+            if not torch.equal(y ** 2, y):
+                raise ValueError('Targets should be binary (0 or 1)')
+
+        if y_pred.ndimension() == 2 and y_pred.shape[1] == 1:
+            y_pred = y_pred.squeeze(dim=-1)
+
+        if y.ndimension() == 2 and y.shape[1] == 1:
+            y = y.squeeze(dim=-1)
+
+        y_pred = y_pred.type_as(self._predictions)
+        y = y.type_as(self._targets)
+
+        self._predictions = torch.cat([self._predictions, y_pred], dim=0)
+        self._targets = torch.cat([self._targets, y], dim=0)
+
+        # Check once the signature and execution of compute_fn
+        if self._predictions.shape == y_pred.shape:
+            try:
+                self.compute_fn(self._predictions, self._targets)
+            except Exception as e:
+                warnings.warn("Probably, there can be a problem with `compute_fn`:\n {}".format(e),
+                              RuntimeWarning)
 # class EpochMetric(Metric):
 #     _predictions, _targets = None, None
 #
@@ -67,7 +129,7 @@ class MyAccuracy(Metric):
 
     def update(self, output):
         y_pred, y = output
-        y_pred = self._output_transform(y_pred)
+        y_pred, y = self._output_transform(y_pred, y)
 
         if not (y.ndimension() == y_pred.ndimension() or y.ndimension() + 1 == y_pred.ndimension()):
             raise ValueError("y must have shape of (batch_size, ...) and y_pred "
@@ -123,8 +185,8 @@ class MultiAttributeMetric(Metric):
         preds, (target, mask) = output
         for i in range(len(self.names)):
             if mask[i].any():
-                pred = torch.masked_select(preds[i], mask[i]).view(-1, preds[i].size()[1])
-                gt = torch.masked_select(target[i], mask[i])
+                pred = torch.masked_select(preds[i], mask[i]).view(-1, preds[i].size(1))
+                gt = torch.masked_select(target[i], mask[i]).view(-1, target[i].size(1))
                 # pred, gt = select_samples_by_mask(preds[i], target[i], mask[i], index)
                 for m in self.metrics_per_attr[i]:
                     m.update((pred, gt))
@@ -145,7 +207,7 @@ class MultiAttributeMetric(Metric):
 
     @staticmethod
     def print_metric_name(metric):
-        if isinstance(metric, AveragePrecision):
+        if isinstance(metric, MyAveragePrecision):
             return 'ap'
         elif isinstance(metric, MyAccuracy):
             return 'accuracy'
