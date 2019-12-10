@@ -50,6 +50,12 @@ def parse_opts():
         type=float,
         help='Weight Decay')
     parser.add_argument(
+        '-do',
+        '--dropout',
+        default=0.1,
+        type=float,
+        help='dropout')
+    parser.add_argument(
         '--nesterov', action='store_true', help='Nesterov momentum')
     parser.set_defaults(nesterov=False)
     parser.add_argument(
@@ -180,19 +186,20 @@ def parse_opts():
         '--attention',
         default='Custom',
         type=str,
-        choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom',
-                 'TwoLevel', 'ThreeLevel', 'TwoLevelAuto', 'ThreeLevelRNN', 'NoAttentionMuti'],
+        # choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom',
+        #          'TwoLevel', 'ThreeLevel', 'TwoLevelAuto', 'ThreeLevelRNN', 'NoAttentionMuti', 'CPrTp', 'PCPrTp'],
+        choices=['NoAttention', 'OvFc', 'PrTp', 'CPrTp', 'PCPrTp'],
         help='Whether to add attention mechanism of each attribute'
              'ScOd: second-order pooling'
              'OvFc: all over you face'
              'RfMp: refining attention heat map'
              'SpRl: spatial regularization'
              'Super: mul-scale attention')
-    parser.add_argument(
-        '-mn',
-        '--map_norm',
-        action='store_true',
-        help='Norm the map to make sum of it become 1')
+    # parser.add_argument(
+    #     '-mn',
+    #     '--map_norm',
+    #     action='store_true',
+    #     help='Norm the map to make sum of it become 1')
     parser.add_argument(
         '-li',
         '--log_interval',
@@ -215,7 +222,21 @@ def parse_opts():
     #     action='store_true',
     #     help='If true, training is not performed.')
     # parser.set_defaults(no_train=False)
-
+    parser.add_argument(
+        '-at_sw',
+        '--at',
+        action='store_true',
+        help='Whether to add attention loss')
+    parser.add_argument(
+        '--at_loss',
+        default='MSE',
+        type=str,
+        choices=['MSE', 'KL'])
+    parser.add_argument(
+        '--at_coe',
+        default=1.,
+        type=float,
+        help='coe for attention loss')
     args = parser.parse_args()
     if args.log_dir:
         args.log_dir = os.path.join(args.result_path, args.log_dir)

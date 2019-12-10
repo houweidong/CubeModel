@@ -8,32 +8,29 @@ from functools import partial
 from training.metric_utils import MyAccuracy
 
 
-def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'):
+def get_losses_metrics(attrs, categorical_loss='cross_entropy', at=False, at_loss='MSE'):
 
     # scales, pos_nums = get_categorial_scale()
-    loss_fns = get_categorial_loss(attrs, categorical_loss)
+    loss_fns = get_categorial_loss(attrs, categorical_loss, at, at_loss)
     losses, metrics = [], []
+    losses_at = []
     # cam_losses = []
-
     for attr in attrs:
-        # For attribute classification
-        # if categorical_loss in ['ohem', 'focal']:
-        #     losses.append(partial(loss_fn, state=True, pos_length=pos_num / 10, neg_length=pos_num / 10 * scale)())
-        # else:
-        #     losses.append(loss_fn)
-
         if attr.data_type == AttributeType.BINARY:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(loss_fn)])
             metrics.append(
                 [AveragePrecision(activation=lambda pred: torch.sigmoid(pred)),
-                 MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr][0])])
-            losses.append(loss_fns[attr][0])
+                 MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr]['attr'])])
+            losses.append(loss_fns[attr]['attr'])
+            if at:
+                losses_at.append(loss_fns[attr]['at_loss'])
+
         elif attr.data_type == AttributeType.MULTICLASS:
             for i in range(attr.branch_num):
                 metrics.append(
                     [AveragePrecision(activation=lambda pred: torch.sigmoid(pred)),
-                     MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr][0])])
-                losses.append(loss_fns[attr][0])
+                     MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr]['attr'])])
+                losses.append(loss_fns[attr]['attr'])
         elif attr.data_type == AttributeType.NUMERICAL:
             # not support now
             pass
@@ -42,24 +39,9 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', attention='None'
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(reverse_ohem_loss)])
             metrics.append(
                 [AveragePrecision(activation=lambda pred: torch.sigmoid(pred)),
-                 MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr][1])])
+                 MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr]['rec'])])
             # Always use reverse OHEM loss for recognizability, at least for now
-            losses.append(loss_fns[attr][1])
-        # if attention == 'CamOvFc':
-        #     # losses.append(exp_loss)
-        #     cam_losses.append(exp_loss)
+            losses.append(loss_fns[attr]['rec'])
 
-    # if attention in ['TwoLevelAlone', 'ThreeLevelAlone']:
-    #     for attr, scale, pos_num in zip(attrs, scales, pos_nums):
-    #         losses.append(loss_fn_val)
-    #         # For recognizability classification
-    #         if attr.rec_trainable:
-    #             # Always use reverse OHEM loss for recognizability, at least for now
-    #             losses.append(reverse_ohem_loss)
-    #         if attention == 'CamOvFc':
-    #             # losses.append(exp_loss)
-    #             cam_losses.append(exp_loss)
-    # losses.extend(cam_losses)
-
-    return losses, metrics
+    return losses + losses_at, metrics
 

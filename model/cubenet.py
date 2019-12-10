@@ -6,7 +6,8 @@ import torch
 
 
 class CubeNet(nn.Module):
-    def __init__(self, conv, attributes, pretrained=True, img_size=224, attention=None, norm=False):
+    def __init__(self, conv, attributes, pretrained=True, img_size=224, attention=None, dropout=0.1,
+                 at=False, at_loss='mse'):
         assert isinstance(img_size, int) or (isinstance(img_size, tuple) and len(img_size) == 2)
         assert isinstance(attributes, list)
         for attr in attributes:
@@ -16,15 +17,19 @@ class CubeNet(nn.Module):
 
         self.imag_size = img_size
         self.attention = attention
-        self.norm = norm
+        self.dropout = dropout
+        # self.norm = norm
         self.conv = conv
-        self.feature_extractor, self.feature_map_depth, self.mean, self.std = get_backbone_network(conv, pretrained)
+        self.at = at
+        self.at_loss = at_loss
+        self.feature_extractor, self.feature_map_depth, self.feature_map_resol, self.mean, self.std = \
+            get_backbone_network(conv, pretrained)
 
         # TODO Test if using separate spatial attention pooling instead of global pooling for each branch works better
         # self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.attributes = attributes
         self.classifier = getattr(model_utils, self.attention)(
-            self.attributes, self.feature_map_depth, 2, (self.norm, self.imag_size))
+            self.attributes, self.feature_map_depth, self.dropout, self.at, self.at_loss)
 
     def forward(self, x):
         # Need to override forward method as JIT/trace requires call to _slow_forward, which is called implicitly by

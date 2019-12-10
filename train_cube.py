@@ -80,14 +80,14 @@ def run(opt):
         optimizer.load_state_dict(checkpoint['optimizer'])
 
     device = 'cuda'
-    loss_fns, metrics = get_losses_metrics(attr, opt.categorical_loss, opt.attention)
+    loss_fns, metrics = get_losses_metrics(attr, opt.categorical_loss, opt.at, opt.at_loss)
     trainer = create_supervised_trainer(model, optimizer,
-                                        lambda pred, target: multitask_loss(pred, target, loss_fns=loss_fns),
+                                        lambda pred, target: multitask_loss(pred, target, loss_fns, len(attr_name), opt.at_coe),
                                         device=device)
     train_evaluator = create_supervised_evaluator(model, metrics={
-        'multitask': MultiAttributeMetric(metrics, (attr, attr_name))}, device=device)
+        'multitask': MultiAttributeMetric(metrics, attr_name)}, device=device)
     val_evaluator = create_supervised_evaluator(model, metrics={
-        'multitask': MultiAttributeMetric(metrics, (attr, attr_name))}, device=device)
+        'multitask': MultiAttributeMetric(metrics, attr_name)}, device=device)
 
     # Training timer handlers
     model_timer, data_timer = Timer(average=True), Timer(average=True)

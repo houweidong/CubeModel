@@ -1,5 +1,5 @@
 from enum import Enum
-
+import numpy as np
 
 # Enum class for attributes included in Wider Attribute dataset only
 class WiderAttributes(Enum):
@@ -142,14 +142,75 @@ class NewAttributes(Enum):
     @staticmethod
     def list_attributes(opt):
         out_rec = opt.specified_recognizable_attrs
+        size = 14 if opt.conv.startswith('vgg') else 7
+        cols = np.arange(0, size, 1, np.float)[np.newaxis, :] + 0.5
+        rows = np.arange(0, size, 1, np.float)[:, np.newaxis] + 0.5
+
+        # 1
+        yifujinshen_center = [[1 / 2 * size, 1 / 3 * size], [1 / 6 * size, 1 / 2 * size],
+                              [5 / 6 * size, 1 / 2 * size]]
+        yifujinshen_sigma = [[2 * size / 7, 3 * size / 7], [2 * size / 7, 4 * size / 7],
+                             [2 * size / 7, 4 * size / 7]]
+        yifujinshen_middle = np.exp(
+            - (np.abs((cols - yifujinshen_center[0][0])) ** 3 / (yifujinshen_sigma[0][0] ** 2) +
+               np.abs((rows - yifujinshen_center[0][1])) ** 3 / (
+                       (yifujinshen_sigma[0][1] * 2) ** 2)))
+        yifujinshen_left = np.exp(
+            - (np.abs((cols - yifujinshen_center[1][0])) ** 3 / (yifujinshen_sigma[1][0] ** 2) +
+               np.abs((rows - yifujinshen_center[1][1])) ** 3 / (yifujinshen_sigma[1][1] ** 2)))
+        yifujinshen_right = np.exp(
+            - (np.abs((cols - yifujinshen_center[2][0])) ** 3 / (yifujinshen_sigma[2][0] ** 2) +
+               np.abs((rows - yifujinshen_center[2][1])) ** 3 / (yifujinshen_sigma[2][1] ** 2)))
+        yifujinshen_sum = yifujinshen_middle + yifujinshen_left + yifujinshen_right
+        yifujinshen = (yifujinshen_sum / np.max(yifujinshen_sum)).reshape(-1)
+
+        # 2
+        kuzijinshen_center = [1 / 2 * size, 2 / 3 * size]
+        kuzijinshen_sigma = [15 * size / 7, 15 * size / 7]
+        kuzijinshen = np.exp(- (np.abs((cols - kuzijinshen_center[0])) ** 4 / (kuzijinshen_sigma[0] ** 2) +
+                                np.abs((rows - kuzijinshen_center[1])) ** 4 / (kuzijinshen_sigma[1] ** 2)))
+        kuzijinshen = (kuzijinshen / np.max(kuzijinshen)).reshape(-1)
+
+        # 3
+        maozi_center = [[1 / 2 * size, 0 * size], [1 / 2 * size, 1 / 3 * size]]
+        maozi_sigma = [5 * size / 7, 1.5 * size / 7]
+        maozi_up = np.exp(- ((np.abs(cols - maozi_center[0][0])) ** 3 / (maozi_sigma[0] ** 2) +
+                             (rows - maozi_center[0][1]) ** 2 / (maozi_sigma[1] ** 2)))
+
+        maozi_down = np.exp(- ((np.abs(cols - maozi_center[1][0])) ** 3 / (maozi_sigma[0] ** 2) +
+                               (rows - maozi_center[1][1]) ** 2 / (maozi_sigma[1] ** 2)))
+        maozi = maozi_up + maozi_down
+        maozi = (maozi / np.max(maozi)).reshape(-1)
+
+        # 4
+        gaolingdangbozi_center = [1 / 2 * size, 1 / 6 * size]
+        gaolingdangbozi_sigma = [5 * size / 7, 2 * size / 7]
+        gaolingdangbozi = np.exp(
+            - ((np.abs(cols - gaolingdangbozi_center[0])) ** 3 / (gaolingdangbozi_sigma[0] ** 2) +
+               (rows - gaolingdangbozi_center[1]) ** 2 / (gaolingdangbozi_sigma[1] ** 2)))
+        gaolingdangbozi = (gaolingdangbozi / np.max(gaolingdangbozi)).reshape(-1)
+
+        # 5
+        gaofaji_center = [1 / 2 * size, 1 / 24 * size]
+        gaofaji_sigma = [5 * size / 7, 2 * size / 7]
+        gaofaji = np.exp(- ((np.abs(cols - gaofaji_center[0])) ** 3 / (gaofaji_sigma[0] ** 2) +
+                            (rows - gaofaji_center[1]) ** 2 / (gaofaji_sigma[1] ** 2)))
+        gaofaji = (gaofaji / np.max(gaofaji)).reshape(-1)
+        hot_map = dict()
+        hot_map[NewAttributes.yifujinshen_yesno] = yifujinshen
+        hot_map[NewAttributes.kuzijinshen_yesno] = kuzijinshen
+        hot_map[NewAttributes.maozi_yesno] = maozi
+        hot_map[NewAttributes.gaolingdangbozi_yesno] = gaolingdangbozi
+        hot_map[NewAttributes.gaofaji_yesno] = gaofaji
 
         def fuc(ar):
+            at = hot_map[ar] if ar in hot_map else []
             if str(ar) in out_rec:
                 return Attribute(ar, AttributeType.BINARY if str(ar).endswith('yesno') else AttributeType.MULTICLASS,
-                                 NewAttributes.num_of_class(str(ar)), rec_trainable=True)
+                                 NewAttributes.num_of_class(str(ar)), at, rec_trainable=True)
             else:
                 return Attribute(ar, AttributeType.BINARY if str(ar).endswith('yesno') else AttributeType.MULTICLASS,
-                                 NewAttributes.num_of_class(str(ar)), rec_trainable=False)
+                                 NewAttributes.num_of_class(str(ar)), at, rec_trainable=False)
 
         attrs_spc = filter(lambda x: str(x) in opt.specified_attrs,
                            [attr for attr in NewAttributes])
@@ -163,7 +224,7 @@ class AttributeType(Enum):
 
 
 class Attribute:
-    def __init__(self, key, tp, bn, rec_trainable=False):
+    def __init__(self, key, tp, bn, at, rec_trainable=False):
         assert isinstance(key, Enum)
         assert isinstance(tp, AttributeType)
         self.key = key
@@ -171,7 +232,12 @@ class Attribute:
         self.data_type = tp
         self.rec_trainable = rec_trainable
         self.branch_num = bn
+        self.at = at
+        self.at_coe = np.sum(at)
 
     def __str__(self):
         return self.name
+
+
+
 

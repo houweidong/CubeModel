@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from ignite.metrics import Metric, Loss, Accuracy
+from ignite.metrics import Metric, Loss
 from ignite.contrib.metrics import AveragePrecision
 from utils.table import TableForPrint
 from ignite.exceptions import NotComputableError
@@ -107,7 +107,7 @@ class MyAccuracy(Metric):
 
 class MultiAttributeMetric(Metric):
     def __init__(self, metrics_per_attr, tasks):
-        self.attrs, self.names = tasks
+        self.names = tasks
         self.metrics_per_attr = [ma if isinstance(ma, list) else [ma] for ma in metrics_per_attr]
         super().__init__()
 
@@ -117,9 +117,11 @@ class MultiAttributeMetric(Metric):
                 m.reset()
 
     def update(self, output):
+        # self.names jinshen_yesno, jinshen_recog,        kuzijinshen_yesno, kuzijinshen_recog
+        # preds:     attr1 logits,  attr1_recog logits,   attr2 logits,      attr2_recog logits,  attr1_at, attr2_at
+        # so match the front 4 items of preds use lenght of self.names, and discard the last two at predits
         preds, (target, mask) = output
-        n_tasks = len(target)
-        for i in range(n_tasks):
+        for i in range(len(self.names)):
             if mask[i].any():
                 pred = torch.masked_select(preds[i], mask[i]).view(-1, preds[i].size()[1])
                 gt = torch.masked_select(target[i], mask[i])
@@ -145,7 +147,7 @@ class MultiAttributeMetric(Metric):
     def print_metric_name(metric):
         if isinstance(metric, AveragePrecision):
             return 'ap'
-        elif isinstance(metric, Accuracy) or isinstance(metric, MyAccuracy):
+        elif isinstance(metric, MyAccuracy):
             return 'accuracy'
         elif isinstance(metric, Loss):
             return 'loss'
