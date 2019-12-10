@@ -237,6 +237,17 @@ def parse_opts():
         default=1.,
         type=float,
         help='coe for attention loss')
+    parser.add_argument(
+        '-st',
+        '--state',
+        action='store_true',
+        help='Whether to add attention loss')
+    parser.add_argument(
+        '-al',
+        '--at_level',
+        default='wide',
+        type=str,
+        choices=['wide', 'thin'])
     args = parser.parse_args()
     if args.log_dir:
         args.log_dir = os.path.join(args.result_path, args.log_dir)

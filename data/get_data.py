@@ -96,9 +96,9 @@ def _get_newdata(opt, mean, std, attrs):
          ToTensor(), Normalize(mean, std)])
     target_transform = ToMaskedTargetTensor(attrs, opt.label_smooth, opt.at, opt.at_loss)
 
-    train_data = NewdataAttr(attrs, root, 'train', opt.mode, cropping_transform, img_transform=train_img_transform,
+    train_data = NewdataAttr(attrs, root, 'train', opt.mode, opt.state, cropping_transform, img_transform=train_img_transform,
                              target_transform=target_transform)
-    val_data = NewdataAttr(attrs, root, 'test', opt.mode, cropping_transform,
+    val_data = NewdataAttr(attrs, root, 'test', opt.mode, opt.state, cropping_transform,
                            img_transform=val_img_transform, target_transform=target_transform)
 
     return train_data, val_data

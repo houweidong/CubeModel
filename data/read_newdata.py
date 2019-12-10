@@ -7,7 +7,7 @@ from data.image_loader import opencv_loader
 
 
 class NewdataAttr(Dataset):
-    def __init__(self, attributes, root, subset, mode, cropping_transform,
+    def __init__(self, attributes, root, subset, mode, state, cropping_transform,
                  img_transform=None, target_transform=None):
         for attr in attributes:
             assert isinstance(attr, Attribute)
@@ -15,6 +15,7 @@ class NewdataAttr(Dataset):
         self._attrs_values = [attr.key.value for attr in self._attrs]
         # mode is in ["paper", "branch"]
         self.mode = mode
+        self.state = state
         self.data = self._make_dataset(root, subset)
 
         self.cropping_transform = cropping_transform
@@ -47,6 +48,7 @@ class NewdataAttr(Dataset):
             anno_path = os.path.join(anno_dir, anno_txt)
             with open(anno_path) as f:
                 lines = f.readlines()
+                lines = lines[:32] if self.state == 'test' else lines
                 if subset == 'train':
                     lines = [lines[i] for i in range(len(lines)) if not str(i).endswith(('3' '6', '9'))]
                 else:

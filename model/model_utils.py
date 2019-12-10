@@ -182,8 +182,10 @@ class OvFc(NoAttention):
                     cv3_rl = cv3_sm * attr.at_coe
                     # print(cv3_rl[0, 14*7:14*8])
                     cv3_rl = cv3_rl.view(batch, 1, resolu, resolu)
-            if not self.at:
-                cv3_rl = self.sigmoid(cv3_rl)
+            # if not self.at:
+            #     cv3_rl = self.sigmoid(cv3_rl)
+            # if name == 'maozi_yesno':
+            #     print(cv3_rl[0, 0, :, 3:12])
             y = cv3_rl * x
             y = self.dropout(getattr(self, 'global_pool')(y).view(batch, -1))
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(y))

@@ -20,6 +20,7 @@ from data.get_data import get_data
 from utils.get_tasks import get_tasks
 from utils.table import print_summar_table
 from utils.logger import Logger
+from utils.my_engine import my_trainer
 
 from training.loss_utils import multitask_loss
 from training.metric_utils import MultiAttributeMetric
@@ -68,7 +69,8 @@ def run(opt):
         optimizer = Adam(parameters, lr=opt.lr, betas=opt.betas)
     else:
         raise Exception("Not supported")
-    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=opt.lr_patience, factor=opt.factor, min_lr=1e-6)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=opt.lr_patience, factor=opt.factor,
+                                               min_lr=1e-6)
 
     # Loading checkpoint
     if opt.checkpoint:
@@ -81,9 +83,8 @@ def run(opt):
 
     device = 'cuda'
     loss_fns, metrics = get_losses_metrics(attr, opt.categorical_loss, opt.at, opt.at_loss)
-    trainer = create_supervised_trainer(model, optimizer,
-                                        lambda pred, target: multitask_loss(pred, target, loss_fns, len(attr_name), opt.at_coe),
-                                        device=device)
+    trainer = my_trainer(model, optimizer, lambda pred, target, epoch: multitask_loss(
+        pred, target, loss_fns, len(attr_name), opt.at_coe, epoch), device=device)
     train_evaluator = create_supervised_evaluator(model, metrics={
         'multitask': MultiAttributeMetric(metrics, attr_name)}, device=device)
     val_evaluator = create_supervised_evaluator(model, metrics={
@@ -107,11 +108,12 @@ def run(opt):
     def log_training_loss(engine):
         iter_num = (engine.state.iteration - 1) % len(train_loader) + 1
         if iter_num % opt.log_interval == 0:
-            logger("Epoch[{}] Iteration[{}/{}] Loss: {:.2f} Model Process: {:.3f}s/batch "
-                   "Data Preparation: {:.3f}s/batch".format(engine.state.epoch, iter_num, len(train_loader),
-                                                            engine.state.output, model_timer.value(),
-                                                            data_timer.value()))
-            writer.add_scalar("training/loss", engine.state.output, engine.state.iteration)
+            logger("Epoch[{}] Iteration[{}/{}] Sum Loss: {:.2f} Cls Loss: {:.2f} At Loss: {:.2f} "
+                   "Model Process: {:.3f}s/batch Data Preparation: {:.3f}s/batch".format(
+                engine.state.epoch, iter_num, len(train_loader), engine.state.output['sum'],
+                engine.state.output['cls'], engine.state.output['at'], model_timer.value(),
+                data_timer.value()))
+            writer.add_scalar("training/loss", engine.state.output['sum'], engine.state.iteration)
 
     # Log/Plot Learning rate
     @trainer.on(Events.EPOCH_STARTED)

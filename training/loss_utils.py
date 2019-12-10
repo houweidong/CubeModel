@@ -211,17 +211,7 @@ def get_categorial_weight():
 
 
 # TODO Add coefficient to losses
-def multitask_loss(output, label, loss_fns, n_tasks_class, at_coe):
-    """
-    Combine losses of each branch(attribute) of multi-task learning model and return a single total loss,
-    which is ready for back-propagation. This function also handles multi-dataset training where
-    each sample of the input training batch may come from different datasets and thus contains different
-    subset of branches in output (specified by mask in target).
-    :param output: Predictions from model w.r.t training batch.
-    :param label: Groundtruth of the training batch.
-    :param loss_fns: A list containing losses of each branch of output of the model, following the same order.
-    :return: A Pytorch Tensor that sum losses of each branch.
-    """
+def multitask_loss(output, label, loss_fns, n_tasks_class, at_coe, epoch):
     target, mask = label
     # n_samples = target[0].size()[0]
     n_tasks_all = len(target)
@@ -237,12 +227,12 @@ def multitask_loss(output, label, loss_fns, n_tasks_class, at_coe):
                 total_loss_class += loss_fns[i](output_fil, gt)
             else:
                 total_loss_at += loss_fns[i](output_fil, gt)
-    # n_tasks_remain = len(output) - n_tasks
-    # for j in range(n_tasks_remain):
-    #     # TODO deal with the mask condition
-    #     total_loss += loss_fns[j + n_tasks](output[j + n_tasks])
-    # print(total_loss_at, at_coe)
-    return total_loss_class + at_coe * total_loss_at
+
+    coe = at_coe * 0.95 ** (epoch-1)
+    total_loss_at = coe * total_loss_at
+    total_loss = total_loss_class + total_loss_at
+    loss = {'sum': total_loss, 'cls': total_loss_class, 'at': total_loss_at}
+    return loss
 
 # class Ohem(object):
 #
