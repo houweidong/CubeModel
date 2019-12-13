@@ -44,7 +44,9 @@ def my_trainer(model, optimizer, loss_fn,
         loss = loss_fn(y_pred, y, engine.state.epoch)
         loss['sum'].backward()
         optimizer.step()
-        output = {'sum': loss['sum'].item(), 'cls': loss['cls'].item(), 'at': loss['at'].item()}
+        output = {}
+        for key in loss:
+            output[key] = loss[key]
         return output
 
     return Engine(_update)

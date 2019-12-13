@@ -127,6 +127,7 @@ class NoAttention(Base):
         super(NoAttention, self).__init__(attributes, in_features)
 
         self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.global_max_pool = nn.AdaptiveMaxPool2d(1)
         self.global_pool_1d = nn.AdaptiveAvgPool1d(1)
         for attr in self.attributes:
             setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
@@ -187,9 +188,10 @@ class OvFc(NoAttention):
             # if name == 'maozi_yesno':
             #     print(cv3_rl[0, 0, :, 3:12])
             y = cv3_rl * x
-            y = self.dropout(getattr(self, 'global_pool')(y).view(batch, -1))
+            y = self.dropout(getattr(self, 'global_max_pool')(y).view(batch, -1))
+            y = self.relu(y)
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(y))
-            # y = self.relu(y)
+            y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
             results.append(cls)
             if attr.rec_trainable:  # Also return the recognizable branch if necessary

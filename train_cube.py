@@ -109,10 +109,10 @@ def run(opt):
         iter_num = (engine.state.iteration - 1) % len(train_loader) + 1
         if iter_num % opt.log_interval == 0:
             logger("Epoch[{}] Iteration[{}/{}] Sum Loss: {:.2f} Cls Loss: {:.2f} At Loss: {:.2f} "
-                   "Model Process: {:.3f}s/batch Data Preparation: {:.3f}s/batch".format(
+                   "Coe: {:.2f} Model Process: {:.3f}s/batch Data Preparation: {:.3f}s/batch".format(
                 engine.state.epoch, iter_num, len(train_loader), engine.state.output['sum'],
-                engine.state.output['cls'], engine.state.output['at'], model_timer.value(),
-                data_timer.value()))
+                engine.state.output['cls'], engine.state.output['at'], engine.state.output['coe'],
+                model_timer.value(), data_timer.value()))
             writer.add_scalar("training/loss", engine.state.output['sum'], engine.state.iteration)
 
     # Log/Plot Learning rate
