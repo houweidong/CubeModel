@@ -3,12 +3,11 @@ import pretrainedmodels
 import torch.nn as nn
 from data.attributes import Attribute, AttributeType
 import torch
-from model import detnet, fpn18
+from model import detnet, fpn18, MobileNetV2
 from model import vgg
 import math
 import numpy as np
 import torch.nn.functional as F
-
 
 # class Scale(nn.Module):
 #     def __init__(self, init_value=1.0):
@@ -20,6 +19,21 @@ import torch.nn.functional as F
 
 
 def modify_vgg(model):
+    model._features = model.features
+    del model.features
+    del model.classifier  # Delete unused module to free memory
+
+    def features(self, input):
+        x = self._features(input)
+        return x
+
+    # TODO Based on pretrainedmodels, it modify instance method instead of class. Will need to test.py
+    setattr(model.__class__, 'features', features)  # Must use setattr here instead of assignment
+
+    return model
+
+
+def modify_mobile(model):
     model._features = model.features
     del model.features
     del model.classifier  # Delete unused module to free memory
@@ -54,6 +68,14 @@ def get_backbone_network(conv, pretrained=True):
         fpn_getter = getattr(fpn18, conv)
         backbone = fpn_getter()
         feature_map_depth = backbone.out_channels
+        feature_map_resol = 14
+
+    elif conv.startswith('mobile'):
+        mobile_getter = getattr(MobileNetV2, conv)
+        backbone = mobile_getter()
+        feature_map_depth = backbone.last_channel
+
+        backbone = modify_mobile(backbone)
         feature_map_resol = 14
 
     else:
