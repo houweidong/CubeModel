@@ -50,7 +50,7 @@ def modify_mobile(model):
 
 def modify_mobilel(model):
     del model.linear3
-    del model.bns
+    del model.bn3
     del model.hs3
     del model.linear4
 
@@ -72,7 +72,7 @@ def modify_mobilel(model):
 
 def modify_mobiles(model):
     del model.linear3
-    del model.bns
+    del model.bn3
     del model.hs3
     del model.linear4
 
@@ -80,10 +80,10 @@ def modify_mobiles(model):
         out = self.hs1(self.bn1(self.conv1(input)))
         out = self.bneck(out)
         out = self.hs2(self.bn2(self.conv2(out)))
-        out = F.avg_pool2d(out, 7)
-        out = out.view(out.size(0), -1)
-        out = self.hs3(self.bn3(self.linear3(out)))
-        out = self.linear4(out)
+        # out = F.avg_pool2d(out, 7)
+        # out = out.view(out.size(0), -1)
+        # out = self.hs3(self.bn3(self.linear3(out)))
+        # out = self.linear4(out)
         return out
 
     # TODO Based on pretrainedmodels, it modify instance method instead of class. Will need to test.py
@@ -114,7 +114,7 @@ def get_backbone_network(conv, pretrained=True):
         feature_map_depth = backbone.out_channels
         feature_map_resol = 14
 
-    elif conv.startswith('mobile'):
+    elif conv.startswith('mobilenet'):
         mobile_getter = getattr(MobileNetV2, conv)
         backbone = mobile_getter(pretrained=pretrained)
         feature_map_depth = backbone.last_channel
@@ -123,7 +123,7 @@ def get_backbone_network(conv, pretrained=True):
         feature_map_resol = 14
 
     elif conv.startswith('mobile3l'):
-        mobile_getter = getattr(MobileNetV2, conv)
+        mobile_getter = getattr(mobilenetv3, conv)
         backbone = mobile_getter(pretrained=pretrained)
         feature_map_depth = 960
 
@@ -131,7 +131,7 @@ def get_backbone_network(conv, pretrained=True):
         feature_map_resol = 7
 
     elif conv.startswith('mobile3s'):
-        mobile_getter = getattr(MobileNetV2, conv)
+        mobile_getter = getattr(mobilenetv3, conv)
         backbone = mobile_getter(pretrained=pretrained)
         feature_map_depth = 576
 
