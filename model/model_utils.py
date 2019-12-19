@@ -3,7 +3,7 @@ import pretrainedmodels
 import torch.nn as nn
 from data.attributes import Attribute, AttributeType
 import torch
-from model import detnet, fpn18, MobileNetV2
+from model import detnet, fpn18, MobileNetV2, mobilenetv3
 from model import vgg
 import math
 import numpy as np
@@ -48,6 +48,50 @@ def modify_mobile(model):
     return model
 
 
+def modify_mobilel(model):
+    del model.linear3
+    del model.bns
+    del model.hs3
+    del model.linear4
+
+    def features(self, input):
+        out = self.hs1(self.bn1(self.conv1(input)))
+        out = self.bneck(out)
+        out = self.hs2(self.bn2(self.conv2(out)))
+        # out = F.avg_pool2d(out, 7)
+        # out = out.view(out.size(0), -1)
+        # out = self.hs3(self.bn3(self.linear3(out)))
+        # out = self.linear4(out)
+        return out
+
+    # TODO Based on pretrainedmodels, it modify instance method instead of class. Will need to test.py
+    setattr(model.__class__, 'features', features)  # Must use setattr here instead of assignment
+
+    return model
+
+
+def modify_mobiles(model):
+    del model.linear3
+    del model.bns
+    del model.hs3
+    del model.linear4
+
+    def features(self, input):
+        out = self.hs1(self.bn1(self.conv1(input)))
+        out = self.bneck(out)
+        out = self.hs2(self.bn2(self.conv2(out)))
+        out = F.avg_pool2d(out, 7)
+        out = out.view(out.size(0), -1)
+        out = self.hs3(self.bn3(self.linear3(out)))
+        out = self.linear4(out)
+        return out
+
+    # TODO Based on pretrainedmodels, it modify instance method instead of class. Will need to test.py
+    setattr(model.__class__, 'features', features)  # Must use setattr here instead of assignment
+
+    return model
+
+
 def get_backbone_network(conv, pretrained=True):
     if conv.startswith('vgg'):  # For VGG, use torchvision directly instead
         vgg_getter = getattr(vgg, conv)
@@ -66,18 +110,33 @@ def get_backbone_network(conv, pretrained=True):
 
     elif conv.startswith('fpn'):
         fpn_getter = getattr(fpn18, conv)
-        backbone = fpn_getter()
+        backbone = fpn_getter(pretrained=pretrained)
         feature_map_depth = backbone.out_channels
         feature_map_resol = 14
 
     elif conv.startswith('mobile'):
         mobile_getter = getattr(MobileNetV2, conv)
-        backbone = mobile_getter()
+        backbone = mobile_getter(pretrained=pretrained)
         feature_map_depth = backbone.last_channel
 
         backbone = modify_mobile(backbone)
         feature_map_resol = 14
 
+    elif conv.startswith('mobile3l'):
+        mobile_getter = getattr(MobileNetV2, conv)
+        backbone = mobile_getter(pretrained=pretrained)
+        feature_map_depth = 960
+
+        backbone = modify_mobilel(backbone)
+        feature_map_resol = 7
+
+    elif conv.startswith('mobile3s'):
+        mobile_getter = getattr(MobileNetV2, conv)
+        backbone = mobile_getter(pretrained=pretrained)
+        feature_map_depth = 576
+
+        backbone = modify_mobiles(backbone)
+        feature_map_resol = 7
     else:
         if pretrained:
             backbone = pretrainedmodels.__dict__[conv](num_classes=1000)
