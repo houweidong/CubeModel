@@ -13,7 +13,7 @@ from utils.get_tasks import get_tasks
 import matplotlib.pyplot as plt
 
 opt = parse_opts()
-# opt.pretrain = False
+opt.pretrain = False
 
 
 def get_input(cuda=True, transform=None, box=None, path=None):
