@@ -1,2 +1,2 @@
-for test_mode command
+# for test_mode command
 python3 test_cube.py  --conv mobile3l --root_path /root/dataset -sa yifujinshen_yesno kuzijinshen_yesno maozi_yesno gaolingdangbozi_yesno gaofaji_yesno -at NoAttention --img_path testpic/5.jpg
