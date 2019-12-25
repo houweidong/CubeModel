@@ -6,7 +6,7 @@ import torch
 
 
 class CubeNet(nn.Module):
-    def __init__(self, conv, attributes, pretrained=True, img_size=224, attention=None, dropout=0.1,
+    def __init__(self, switch, conv, attributes, pretrained=True, img_size=224, attention=None, dropout=0.1,
                  at=False, at_loss='mse'):
         assert isinstance(img_size, int) or (isinstance(img_size, tuple) and len(img_size) == 2)
         assert isinstance(attributes, list)
@@ -28,8 +28,9 @@ class CubeNet(nn.Module):
         # TODO Test if using separate spatial attention pooling instead of global pooling for each branch works better
         # self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.attributes = attributes
+        self.switch = switch
         self.classifier = getattr(model_utils, self.attention)(
-            self.attributes, self.feature_map_depth, self.dropout, self.at, self.at_loss)
+            self.attributes, self.feature_map_depth, self.dropout, self.at, self.at_loss, self.switch)
 
     def forward(self, x):
         # Need to override forward method as JIT/trace requires call to _slow_forward, which is called implicitly by

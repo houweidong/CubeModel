@@ -94,6 +94,7 @@ def modify_mobile(model):
 
 def modify_mobile3(model):
     model._features = model.features
+    del model.avgpool
     del model.features
     del model.classifier  # Delete unused module to free memory
 
@@ -185,7 +186,7 @@ def get_param_groups(group_of_layers):
 
 
 class Base(nn.Module):
-    def __init__(self, attributes, in_features):
+    def __init__(self, attributes, in_features, switch):
         for attr in attributes:
             assert isinstance(attr, Attribute)
         super(Base, self).__init__()
@@ -195,6 +196,7 @@ class Base(nn.Module):
         self.attributes = attributes
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
+        self.switch = switch
 
         for attr in self.attributes:
             name = attr.name
@@ -220,22 +222,27 @@ class Base(nn.Module):
 
 class NoAttention(Base):
     def __init__(self, attributes, in_features, dropout=0.1,
-                 at=False, at_loss='mse'):
-        super(NoAttention, self).__init__(attributes, in_features)
+                 at=False, at_loss='mse', switch=True):
+        super(NoAttention, self).__init__(attributes, in_features, switch)
 
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
-        self.global_max_pool = nn.AdaptiveMaxPool2d(1)
-        self.global_pool_1d = nn.AdaptiveAvgPool1d(1)
+        # self.global_pool = nn.AdaptiveAvgPool2d(1)
+        # self.global_max_pool = nn.AdaptiveMaxPool2d(1)
+        # self.global_pool_1d = nn.AdaptiveAvgPool1d(1)
+        self.global_pool = nn.AvgPool2d(7)
         for attr in self.attributes:
             setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
         self.dropout = nn.Dropout(dropout)
         self.at = at
         self.at_loss = at_loss
-        self.tanh = nn.Tanh()
+        # self.tanh = nn.Tanh()
         self.softmax = nn.Softmax(dim=1)
         self.log_softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
+        batch = x.size(0)
+        ch = x.size(1)
+        # resolu = x.size(2)
+        # x = self.dropout(self.global_pool_1d(x.view(batch, ch, -1)).view(batch, -1))
         x = self.dropout(self.global_pool(x).view(x.size(0), -1))
         results = []
         for attr in self.attributes:
@@ -243,10 +250,16 @@ class NoAttention(Base):
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
             # y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
-            results.append(cls)
+            if self.switch:
+                results.append(cls)
+            else:
+                results.append(self.sigmoid(cls))
             if attr.rec_trainable:  # Also return the recognizable branch if necessary
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
-                results.append(recognizable)
+                if self.switch:
+                    results.append(recognizable)
+                else:
+                    results.append(recognizable)
         return results
 
 

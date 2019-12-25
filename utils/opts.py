@@ -117,7 +117,11 @@ def parse_opts():
         action='store_true',
         help='Whether to use pretrained weights in conv models')
     parser.set_defaults(pretrain=True)
-
+    parser.add_argument(
+        '-tr',
+        '--train',
+        action='store_true',
+        help='Whether is train mode')
     # parser.add_argument(
     #     '--ft_begin_index',
     #     default=0,
@@ -249,6 +253,23 @@ def parse_opts():
         default='wide',
         type=str,
         choices=['wide', 'thin'])
+    parser.add_argument(
+        '--img_path',
+        default='',
+        type=str,
+        help='test img path')
+    parser.add_argument(
+        '--model_path',
+        default='pretrained/save_60.pth',
+        type=str,
+        help='pretrained model path')
+    parser.add_argument(
+        '-tm',
+        '--test_mode',
+        default='pic',
+        type=str,
+        choices=['pic', 'train_dir', 'camera'],
+        help='pic: a single picture,  train_dir: the train set and val set,  camera: for the real time test')
     args = parser.parse_args()
     if args.log_dir:
         args.log_dir = os.path.join(args.result_path, args.log_dir)
