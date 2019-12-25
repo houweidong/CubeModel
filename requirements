@@ -1,5 +1,6 @@
 tensorflow 1.15.0rc0
 torch 1.2.0
+torchvision 0.2.2.post3
 numpy 1.18.0
 onnx 1.6.0
 onnx2keras 0.0.13
