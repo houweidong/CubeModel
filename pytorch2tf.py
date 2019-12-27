@@ -1,4 +1,4 @@
-# import keras
+import keras
 import numpy as np
 from torch.autograd import Variable
 import torch
@@ -8,6 +8,8 @@ from utils.get_tasks import get_tasks
 from utils.opts import parse_opts
 from keras import backend as K
 import tensorflow as tf
+from tensorflow import lite
+# from utils.convert_model_to_NWHC import convert_frozen_model_to_NWHC
 
 
 def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=True):
@@ -26,6 +28,7 @@ def freeze_session(session, keep_var_names=None, output_names=None, clear_device
     @return The frozen graph definition.
     """
     from tensorflow.python.framework.graph_util import convert_variables_to_constants
+
     graph = session.graph
     with graph.as_default():
         freeze_var_names = \
@@ -60,10 +63,22 @@ model.load_state_dict(state_dict, strict=True)
 model.eval()
 
 # we should specify shape of the input tensor
-k_model = pytorch_to_keras(model, input_var, [(3, opt.person_size, opt.person_size,)], verbose=True, name_policy='short')
+k_model = pytorch_to_keras(model, input_var, [(3, opt.person_size, opt.person_size,)],
+                           change_ordering=True, verbose=True, name_policy='short')
 
 frozen_graph = freeze_session(K.get_session(),
                               output_names=[out.op.name for out in k_model.outputs])
-
 tf.train.write_graph(frozen_graph, ".", "my_model.pb", as_text=False)
-print([i for i in k_model.outputs])
+# print([i for i in k_model.outputs])
+# keras_file = "my_model.h5"
+# keras.models.save_model(model, keras_file)
+# converter = lite.TFLiteConverter.from_keras_model_file(keras_file)
+# converter = lite.TFLiteConverter.from_keras_model(k_model)
+# convert_frozen_model_to_NWHC("my_model.pb")
+input_array = ['input_0']
+output_array = ['output_0', 'output_1', 'output_2', 'output_3', 'output_4']
+converter = lite.TFLiteConverter.from_frozen_graph("my_model.pb", input_array, output_array)
+
+# tflite_model = converter.convert()
+# open("my_model.tflite", "wb").write(tflite_model)
+

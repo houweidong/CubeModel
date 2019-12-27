@@ -250,17 +250,37 @@ class NoAttention(Base):
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
             # y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
-            if self.switch:
-                results.append(cls)
-            else:
-                results.append(self.sigmoid(cls))
+            if not self.switch:
+                cls = self.sigmoid(cls)
+            results.append(cls)
             if attr.rec_trainable:  # Also return the recognizable branch if necessary
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
-                if self.switch:
-                    results.append(recognizable)
-                else:
+                if not self.switch:
+                    recognizable = self.sigmoid(recognizable)
                     results.append(recognizable)
         return results
+
+        # y = getattr(self, 'fc_' + self.attributes[0].name + '_1')(x)
+        # cls0 = getattr(self, 'fc_' + self.attributes[0].name + '_classifier')(y)
+        # cls0 = self.sigmoid(cls0)
+
+        # y = self.dropout(getattr(self, 'fc_' + self.attributes[1].name + '_1')(x))
+        # cls1 = getattr(self, 'fc_' + self.attributes[1].name + '_classifier')(y)
+        # cls1 = self.sigmoid(cls1)
+        #
+        # y = self.dropout(getattr(self, 'fc_' + self.attributes[2].name + '_1')(x))
+        # cls2 = getattr(self, 'fc_' + self.attributes[2].name + '_classifier')(y)
+        # cls2 = self.sigmoid(cls2)
+        #
+        # y = self.dropout(getattr(self, 'fc_' + self.attributes[3].name + '_1')(x))
+        # cls3 = getattr(self, 'fc_' + self.attributes[3].name + '_classifier')(y)
+        # cls3 = self.sigmoid(cls3)
+        #
+        # y = self.dropout(getattr(self, 'fc_' + self.attributes[4].name + '_1')(x))
+        # cls4 = getattr(self, 'fc_' + self.attributes[4].name + '_classifier')(y)
+        # cls4 = self.sigmoid(cls4)
+
+        # return y
 
 
 class OvFc(NoAttention):
