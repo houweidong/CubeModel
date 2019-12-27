@@ -53,7 +53,7 @@ attr, _ = get_tasks(opt)
 model = CubeNet(opt.train, opt.conv, attr, pretrained=False, img_size=opt.person_size,
                 attention=opt.attention, dropout=opt.dropout, at=opt.at, at_loss=opt.at_loss)
 
-path = "pretrained/save_60.pth"
+path = "CubeModel/pretrained/save_60.pth"
 state_dict = torch.load(path, map_location='cpu')["state_dict"]
 for k in list(state_dict.keys()):
     k_new = k[7:]
