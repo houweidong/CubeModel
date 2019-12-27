@@ -244,26 +244,26 @@ class NoAttention(Base):
         # resolu = x.size(2)
         # x = self.dropout(self.global_pool_1d(x.view(batch, ch, -1)).view(batch, -1))
         x = self.dropout(self.global_pool(x).view(x.size(0), -1))
-        results = []
-        for attr in self.attributes:
-            name = attr.name
-            y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
-            # y = self.relu(y)
-            cls = getattr(self, 'fc_' + name + '_classifier')(y)
-            if not self.switch:
-                cls = self.sigmoid(cls)
-            results.append(cls)
-            if attr.rec_trainable:  # Also return the recognizable branch if necessary
-                recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
-                if not self.switch:
-                    recognizable = self.sigmoid(recognizable)
-                    results.append(recognizable)
-        return results
+        # results = []
+        # for attr in self.attributes:
+        #     name = attr.name
+        #     y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
+        #     # y = self.relu(y)
+        #     cls = getattr(self, 'fc_' + name + '_classifier')(y)
+        #     if not self.switch:
+        #         cls = self.sigmoid(cls)
+        #     results.append(cls)
+        #     if attr.rec_trainable:  # Also return the recognizable branch if necessary
+        #         recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
+        #         if not self.switch:
+        #             recognizable = self.sigmoid(recognizable)
+        #             results.append(recognizable)
+        # return results
 
-        # y = getattr(self, 'fc_' + self.attributes[0].name + '_1')(x)
+        y = getattr(self, 'fc_' + self.attributes[0].name + '_1')(x)
         # cls0 = getattr(self, 'fc_' + self.attributes[0].name + '_classifier')(y)
         # cls0 = self.sigmoid(cls0)
-
+        #
         # y = self.dropout(getattr(self, 'fc_' + self.attributes[1].name + '_1')(x))
         # cls1 = getattr(self, 'fc_' + self.attributes[1].name + '_classifier')(y)
         # cls1 = self.sigmoid(cls1)
@@ -280,7 +280,7 @@ class NoAttention(Base):
         # cls4 = getattr(self, 'fc_' + self.attributes[4].name + '_classifier')(y)
         # cls4 = self.sigmoid(cls4)
 
-        # return y
+        return y
 
 
 class OvFc(NoAttention):
