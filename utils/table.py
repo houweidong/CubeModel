@@ -60,18 +60,20 @@ class TableForPrint(object):
             ap = float('{:.4f}'.format(sum(fil['ap']) / len(fil['ap']))) if len(fil['ap']) else float('nan')
             accuracy = float('{:.4f}'.format(sum(fil['accuracy']) / len(fil['accuracy']))) \
                 if len(fil['accuracy']) else float('nan')
-            loss = float('{:.4f}'.format(sum(fil['loss'])))
-            for evl, evl_name in zip(['ap', 'accuracy', 'loss'], ['mAP', 'mAccuracy', 'total_loss']):
+            # loss = float('{:.4f}'.format(sum(fil['loss'])))
+            # for evl, evl_name in zip(['ap', 'accuracy', 'loss'], ['mAP', 'mAccuracy', 'total_loss']):
+            for evl, evl_name in zip(['ap', 'accuracy'], ['mAP', 'mAccuracy']):
                 self.logger_print[name][evl].append(locals()[evl])
                 summary_name = name + '/' + evl_name
                 # if name == 'rec':
                 self.summary[summary_name] = locals()[evl]
-                if summary_name == 'rec/total_loss':
-                    self.summary['total_loss'] = self.summary['attr/total_loss'] + self.summary['rec/total_loss']
+                # if summary_name == 'rec/total_loss':
+                #     self.summary['total_loss'] = self.summary['attr/total_loss'] + self.summary['rec/total_loss']
 
     def create(self):
         logger_for_print = collections.OrderedDict()
-        name_list = ['ap', 'accuracy', 'loss']
+        # name_list = ['ap', 'accuracy', 'loss']
+        name_list = ['ap', 'accuracy']
         for name in name_list:
             logger_for_print[name] = []
 

@@ -19,8 +19,8 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', at=False, at_los
         if attr.data_type == AttributeType.BINARY:
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(loss_fn)])
             metrics.append(
-                [MyAveragePrecision(output_transform=lambda pred, y: (torch.sigmoid(pred), torch.round(y).long())),
-                 MyAccuracy(output_transform=lambda pred, y: (torch.sigmoid(pred), torch.round(y).long())), Loss(loss_fns[attr]['attr'])])
+                [MyAveragePrecision(output_transform=lambda pred, y: (pred, torch.round(y).long())),
+                 MyAccuracy(output_transform=lambda pred, y: (pred, torch.round(y).long()))])
             losses.append(loss_fns[attr]['attr'])
             if at:
                 losses_at.append(loss_fns[attr]['at_loss'])
@@ -29,7 +29,7 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', at=False, at_los
             for i in range(attr.branch_num):
                 metrics.append(
                     [MyAveragePrecision(activation=lambda pred: torch.sigmoid(pred)),
-                     MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred)), Loss(loss_fns[attr]['attr'])])
+                     MyAccuracy(output_transform=lambda pred: torch.sigmoid(pred))])
                 losses.append(loss_fns[attr]['attr'])
         elif attr.data_type == AttributeType.NUMERICAL:
             # not support now
@@ -39,7 +39,7 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', at=False, at_los
             # metrics.append([AveragePrecision(activation=lambda pred: F.softmax(pred, 1)[:, 1]), Accuracy(), Loss(reverse_ohem_loss)])
             metrics.append(
                 [MyAveragePrecision(activation=lambda pred, y: (torch.sigmoid(pred), torch.round(y).long())),
-                 MyAccuracy(activation=lambda pred, y: (torch.sigmoid(pred), torch.round(y).long())), Loss(loss_fns[attr]['rec'])])
+                 MyAccuracy(activation=lambda pred, y: (pred, torch.round(y).long()))])
             # Always use reverse OHEM loss for recognizability, at least for now
             losses.append(loss_fns[attr]['rec'])
 
