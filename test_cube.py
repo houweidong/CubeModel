@@ -56,9 +56,7 @@ def get_model(cuda=True):
 
 
 def display(im, tensor_p):
-    probs = []
-    for p in tensor_p:
-        probs.append(p.cpu().detach().numpy()[0, 0])
+    probs = tensor_p.cpu().detach().numpy()[0]
     for i, attr in enumerate(opt.specified_attrs):
         caption = "{}:{:.2f}".format(attr,  probs[i])
         im = cv2.putText(

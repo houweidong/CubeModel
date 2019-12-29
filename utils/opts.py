@@ -260,7 +260,7 @@ def parse_opts():
         help='test img path')
     parser.add_argument(
         '--model_path',
-        default='pretrained/save_60.pth',
+        default='/root/dataset/save_60.pth',
         type=str,
         help='pretrained model path')
     parser.add_argument(
