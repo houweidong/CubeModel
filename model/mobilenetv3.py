@@ -169,9 +169,9 @@ class MobileNetV3(nn.Module):
     def forward(self, x):
         x = self.features(x)
         x = self.conv(x)
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.classifier(x)
+        # x = self.avgpool(x)
+        # x = x.view(x.size(0), -1)
+        # x = self.classifier(x)
         return x
 
     def _initialize_weights(self):
@@ -245,7 +245,7 @@ def mobile3l(pretrained=True):
     if pretrained:
         path = '/root/.torch/models/mobilenetv3-large-657e7b3d.pth'
         state_dict = torch.load(path)
-        model.load_state_dict(state_dict, strict=True)
+        model.load_state_dict(state_dict, strict=False)
 
     return model
 

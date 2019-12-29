@@ -204,7 +204,12 @@ class Base(nn.Module):
             # Also define a branch for classifying recognizability if necessary
             if attr.rec_trainable:
                 setattr(self, 'fc_' + name + '_recognizable', nn.Linear(512, 1))
-            # setattr(self, 'fc_' + name + '_1', nn.Linear(self.in_features, 512))
+            setattr(self, 'fc_' + name + '_1', nn.Linear(self.in_features, 512))
+        # self.fc_c1 = nn.Linear(512, 1)
+        # self.fc_c2 = nn.Linear(512, 1)
+        # self.fc_c3 = nn.Linear(512, 1)
+        # self.fc_c4 = nn.Linear(512, 1)
+        # self.fc_c5 = nn.Linear(512, 1)
 
     def forward(self, *parameters):
         r"""Defines the computation performed at every call.
@@ -231,6 +236,12 @@ class NoAttention(Base):
         self.global_pool = nn.AvgPool2d(7)
         for attr in self.attributes:
             setattr(self, 'fc_' + attr.name + '_1', nn.Linear(self.in_features, 512))
+        # self.fc1 = nn.Linear(self.in_features, 512)
+        # self.fc2 = nn.Linear(self.in_features, 512)
+        # self.fc3 = nn.Linear(self.in_features, 512)
+        # self.fc4 = nn.Linear(self.in_features, 512)
+        # self.fc5 = nn.Linear(self.in_features, 512)
+
         self.dropout = nn.Dropout(dropout)
         self.at = at
         self.at_loss = at_loss
@@ -250,14 +261,17 @@ class NoAttention(Base):
             y = self.dropout(getattr(self, 'fc_' + name + '_1')(x))
             # y = self.relu(y)
             cls = getattr(self, 'fc_' + name + '_classifier')(y)
-            if not self.switch:
+            if not self.training:
                 cls = self.sigmoid(cls)
             results.append(cls)
             if attr.rec_trainable:  # Also return the recognizable branch if necessary
                 recognizable = getattr(self, 'fc_' + name + '_recognizable')(y)
-                if not self.switch:
+                if not self.training:
                     recognizable = self.sigmoid(recognizable)
                     results.append(recognizable)
+
+        if not self.training:
+            results = torch.cat(results, dim=1)
         return results
 
         # y = getattr(self, 'fc_' + self.attributes[0].name + '_1')(x)

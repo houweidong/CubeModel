@@ -78,10 +78,20 @@ import numpy as np
 # plt.matshow(gaofaji)
 # plt.show()
 
-cls0 = torch.tensor([0.1])
-cls1 = torch.tensor([0.1])
-cls2 = torch.tensor([0.1])
+from model.mobilenetv3 import mobile3l
+import torch.nn as nn
+from model.model_utils import get_backbone_network, get_param_groups
+from model import model_utils
+from data.attributes import Attribute
+import torch
+from utils.opts import parse_opts
+from utils.get_tasks import get_tasks
+from model.generate_model import generate_model
 
+opt = parse_opts()
+attr, _ = get_tasks(opt)
+model, _, _, _ = generate_model(opt, attr)
 
-cls = torch.stack([cls0, cls1, cls2], dim=1)
-print(cls)
+example = torch.rand(1, 3, 224, 224).cuda()
+a = torch.jit.trace(model.eval(), example)
+a.save('my.pt')

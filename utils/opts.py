@@ -193,7 +193,7 @@ def parse_opts():
         type=str,
         # choices=['NoAttention', 'ScOd', 'OvFc', 'RfMp', 'SpRl', 'Super', 'PrTp', 'CamOvFc', 'Custom',
         #          'TwoLevel', 'ThreeLevel', 'TwoLevelAuto', 'ThreeLevelRNN', 'NoAttentionMuti', 'CPrTp', 'PCPrTp'],
-        choices=['NoAttention', 'OvFc', 'PrTp', 'CPrTp', 'PCPrTp'],
+        choices=['NoAttention', 'OvFc', 'PrTp', 'CPrTp', 'PCPrTp', 'NoAttentionForTrace'],
         help='Whether to add attention mechanism of each attribute'
              'ScOd: second-order pooling'
              'OvFc: all over you face'
@@ -246,7 +246,7 @@ def parse_opts():
         '-st',
         '--state',
         action='store_true',
-        help='Whether to add attention loss')
+        help='Whether to test mode')
     parser.add_argument(
         '-al',
         '--at_level',

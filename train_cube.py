@@ -130,10 +130,16 @@ def run(opt):
             states = {
                 'epoch': engine.state.epoch,
                 'arch': opt.model,
-                'state_dict': model.state_dict(),
+                'state_dict': model.module.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }
             torch.save(states, save_file_path)
+            # model.eval()
+            # example = torch.rand(1, 3, 224, 224)
+            # traced_script_module = torch.jit.trace(model, example)
+            # traced_script_module.save(save_file_path)
+            # model.train()
+            # torch.save(model._modules.state_dict(), save_file_path)
 
     # val_evaluator event handlers
     @trainer.on(Events.EPOCH_COMPLETED)

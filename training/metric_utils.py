@@ -185,8 +185,8 @@ class MultiAttributeMetric(Metric):
         preds, (target, mask) = output
         for i in range(len(self.names)):
             if mask[i].any():
-                pred = torch.masked_select(preds[i], mask[i]).view(-1, preds[i].size(1))
-                gt = torch.masked_select(target[i], mask[i]).view(-1, target[i].size(1))
+                pred = torch.masked_select(preds[:, i], mask[i].squeeze(1))# .view(-1, preds[i].size(1))
+                gt = torch.masked_select(target[i].squeeze(1), mask[i].squeeze(1))# .view(-1, target[i].size(1))
                 # pred, gt = select_samples_by_mask(preds[i], target[i], mask[i], index)
                 for m in self.metrics_per_attr[i]:
                     m.update((pred, gt))
