@@ -44,4 +44,3 @@ def get_losses_metrics(attrs, categorical_loss='cross_entropy', at=False, at_los
             losses.append(loss_fns[attr]['rec'])
 
     return losses + losses_at, metrics
-

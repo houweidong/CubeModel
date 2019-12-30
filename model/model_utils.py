@@ -186,7 +186,7 @@ def get_param_groups(group_of_layers):
 
 
 class Base(nn.Module):
-    def __init__(self, attributes, in_features, switch):
+    def __init__(self, attributes, in_features):
         for attr in attributes:
             assert isinstance(attr, Attribute)
         super(Base, self).__init__()
@@ -196,7 +196,6 @@ class Base(nn.Module):
         self.attributes = attributes
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
-        self.switch = switch
 
         for attr in self.attributes:
             name = attr.name
@@ -227,8 +226,8 @@ class Base(nn.Module):
 
 class NoAttention(Base):
     def __init__(self, attributes, in_features, dropout=0.1,
-                 at=False, at_loss='mse', switch=True):
-        super(NoAttention, self).__init__(attributes, in_features, switch)
+                 at=False, at_loss='mse'):
+        super(NoAttention, self).__init__(attributes, in_features)
 
         # self.global_pool = nn.AdaptiveAvgPool2d(1)
         # self.global_max_pool = nn.AdaptiveMaxPool2d(1)

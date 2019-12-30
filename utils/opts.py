@@ -117,11 +117,6 @@ def parse_opts():
         action='store_true',
         help='Whether to use pretrained weights in conv models')
     parser.set_defaults(pretrain=True)
-    parser.add_argument(
-        '-tr',
-        '--train',
-        action='store_true',
-        help='Whether is train mode')
     # parser.add_argument(
     #     '--ft_begin_index',
     #     default=0,

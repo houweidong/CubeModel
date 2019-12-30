@@ -7,7 +7,7 @@ def generate_model(opt, tasks=None):
     if opt.model == 'cube':
         # TODO Just assume task == attribute right now. Will need to update
         assert tasks is not None
-        model = CubeNet(opt.train, opt.conv, tasks, pretrained=opt.pretrain, img_size=opt.person_size,
+        model = CubeNet(opt.conv, tasks, pretrained=opt.pretrain, img_size=opt.person_size,
                         attention=opt.attention, dropout=opt.dropout, at=opt.at, at_loss=opt.at_loss)
     else:
         raise Exception('Unsupported model {}'.format(opt.conv))

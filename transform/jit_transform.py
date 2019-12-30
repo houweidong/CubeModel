@@ -9,7 +9,7 @@ model, _, _, _ = generate_model(opt, attr)
 
 state_dict = torch.load('../log/vgg16_new/save_1.pth')['state_dict']
 model.load_state_dict(state_dict)
-
-example = torch.rand(1, 3, 224, 224).cuda()
+model.cpu()
+example = torch.rand(1, 3, 224, 224)
 a = torch.jit.trace(model.eval(), example)
-a.save('my_test.pt')
+a.save('my_test_cpu.pt')
