@@ -228,8 +228,8 @@ def multitask_loss(output, label, loss_fns, n_tasks_class, at_coe, epoch):
             else:
                 total_loss_at += loss_fns[i](output_fil, gt)
 
-    coe = at_coe
-    # coe = at_coe * 0.8 ** (epoch - 1)
+    # coe = at_coe
+    coe = at_coe * 0.8 ** (epoch - 1)
     total_loss_at = coe * total_loss_at
     total_loss = total_loss_class + total_loss_at
     loss = {'sum': total_loss, 'cls': total_loss_class, 'at': total_loss_at, 'coe': coe}

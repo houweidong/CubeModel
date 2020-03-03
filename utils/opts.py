@@ -149,7 +149,7 @@ def parse_opts():
     parser.add_argument(
         '-cl',
         '--categorical_loss',
-        default='ohem',
+        default='cross_entropy',
         type=str,
         help='ohem | cross_entropy | focal | cross_entropy_weight'
     )
@@ -247,7 +247,7 @@ def parse_opts():
         '--at_level',
         default='wide',
         type=str,
-        choices=['wide', 'thin'])
+        choices=['wide', 'thin', 'wrong'])
     parser.add_argument(
         '--img_path',
         default='',

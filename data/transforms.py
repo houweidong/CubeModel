@@ -116,10 +116,10 @@ class ToMaskedTargetTensor(object):
                     val = dummy_val
                 rec_available = 1  # Recognizability is available as long as the sample contains the attribute
                 # Use a mask tensor to indicate which attribute is available on each sample
-                mask.append(torch.tensor([cls_available], dtype=torch.uint8, requires_grad=False))
+                mask.append(torch.tensor([cls_available], dtype=torch.bool, requires_grad=False))
                 target.append(torch.tensor([val], dtype=torch.float, requires_grad=False))
                 if self.at:
-                    mask_at.append(torch.tensor([cls_available], dtype=torch.uint8, requires_grad=False))
+                    mask_at.append(torch.tensor([cls_available], dtype=torch.bool, requires_grad=False))
                     at_ar = attr.at if self.at_loss == 'MSE' else softmax(attr.at)
                     target_at.append(torch.tensor(at_ar, dtype=torch.float, requires_grad=False))
 
@@ -151,7 +151,7 @@ class ToMaskedTargetTensor(object):
             if attr.rec_trainable:
                 # When one attribute's recognizability is trainable, we always return a tuple,
                 # no matter this sample contains such info or not
-                mask.append(torch.tensor([rec_available], dtype=torch.uint8, requires_grad=False))
+                mask.append(torch.tensor([rec_available], dtype=torch.bool, requires_grad=False))
                 target.append(torch.tensor([recognizability], dtype=torch.float, requires_grad=False))
         # print(target)
         return target + target_at, mask + mask_at

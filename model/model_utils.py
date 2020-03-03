@@ -196,6 +196,7 @@ class Base(nn.Module):
         self.attributes = attributes
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
+        # self.global_max_pool = nn.
 
         for attr in self.attributes:
             name = attr.name
@@ -230,7 +231,7 @@ class NoAttention(Base):
         super(NoAttention, self).__init__(attributes, in_features)
 
         # self.global_pool = nn.AdaptiveAvgPool2d(1)
-        # self.global_max_pool = nn.AdaptiveMaxPool2d(1)
+        self.global_max_pool = nn.AdaptiveMaxPool2d(1)
         # self.global_pool_1d = nn.AdaptiveAvgPool1d(1)
         self.global_pool = nn.AvgPool2d(7)
         for attr in self.attributes:

@@ -196,7 +196,7 @@ class NewAttributes(Enum):
             gaofaji = np.exp(- ((np.abs(cols - gaofaji_center[0])) ** 3 / (gaofaji_sigma[0] ** 2) +
                                 (rows - gaofaji_center[1]) ** 2 / (gaofaji_sigma[1] ** 2)))
             gaofaji = (gaofaji / np.max(gaofaji)).reshape(-1)
-        else:
+        elif opt.at_level == 'thin':
             # 1
             yifujinshen_center = [[1 / 2 * size, 1 / 3 * size], [1 / 6 * size, 1 / 2 * size],
                                   [5 / 6 * size, 1 / 2 * size]]
@@ -248,13 +248,25 @@ class NewAttributes(Enum):
                                 (rows - gaofaji_center[1]) ** 2 / (gaofaji_sigma[1] ** 2)))
             gaofaji = (gaofaji / np.max(gaofaji)).reshape(-1)
 
-
+        else:
+            attention_center = [1 / 4 * size, 1 / 4 * size]
+            attention_sigma = [3 * size / 7, 3 * size / 7]
+            attention = np.exp(- (np.abs((cols - attention_center[0])) ** 4 / (attention_sigma[0] ** 2) +
+                                  np.abs((rows - attention_center[1])) ** 4 / (attention_sigma[1] ** 2)))
+            attention = (attention / np.max(attention)).reshape(-1)
         hot_map = dict()
-        hot_map[NewAttributes.yifujinshen_yesno] = yifujinshen
-        hot_map[NewAttributes.kuzijinshen_yesno] = kuzijinshen
-        hot_map[NewAttributes.maozi_yesno] = maozi
-        hot_map[NewAttributes.gaolingdangbozi_yesno] = gaolingdangbozi
-        hot_map[NewAttributes.gaofaji_yesno] = gaofaji
+        if opt.at_level in ['wide', 'thin']:
+            hot_map[NewAttributes.yifujinshen_yesno] = yifujinshen
+            hot_map[NewAttributes.kuzijinshen_yesno] = kuzijinshen
+            hot_map[NewAttributes.maozi_yesno] = maozi
+            hot_map[NewAttributes.gaolingdangbozi_yesno] = gaolingdangbozi
+            hot_map[NewAttributes.gaofaji_yesno] = gaofaji
+        else:
+            hot_map[NewAttributes.yifujinshen_yesno] = attention
+            hot_map[NewAttributes.kuzijinshen_yesno] = attention
+            hot_map[NewAttributes.maozi_yesno] = attention
+            hot_map[NewAttributes.gaolingdangbozi_yesno] = attention
+            hot_map[NewAttributes.gaofaji_yesno] = attention
 
         def fuc(ar):
             at = hot_map[ar] if ar in hot_map else []
